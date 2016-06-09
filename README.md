@@ -22,31 +22,41 @@ the Snap! repository.
 
 Is in ZBlocks.js here.
 
-
 # Design
-
 
 * All function blocks (all blocks?) are reporters; there are no "step" blocks.
 * No mutations -- all "setter-type" blocks return a copy.
 
+* The display window is an immutable object which is a view into a complex
+  data structure that describes the states of things as a function of time.
 
-* So, motion for example:
-    * The display window is an immutable object which is a view into a complex
-      data structure that describes the states of things as a function of time.
-    * Something like "glide 5 steps in 1 second" does this:
-        * Returns a new sprite-view object. 
-        * A sprite-view object is recursively nested, so 
-        * What get's returned here is comprises a list of (sub-)sprite-views
-          with the latest being:
-            * time-translation such that t=0 relative to the end time of the
-              previous sprite-view in the chain
-            * likewise, position-translation
-            * a function relating position to time: x = 5t
-        * The return value of this function can be chained to the next 
-          sprite-view.
+* Example: "glide 5 steps in 1 second":
+    * Returns a new sprite-view object, which is a chain of views,
+    * The latest being:
+        * time-translation such that t=0 relative to the end time of the
+          previous sprite-view in the chain
+        * likewise, position-translation
+        * a function relating position to time: x = 5t
+    * The return value of this function can be chained to the next 
+      sprite-view.
+
+- graphical contexts - most generally, any graphical context is a chain of
+  general coordinate transformations.
+- transformations can be general, but the most common ones are
+    - linear (e.g. constant motion)
+    - geometric (e.g. steadily increasing scale)
+    - cyclic (steadily changing direction, hue, etc.)
+
+
+* Example: spiral (of any underlying shape)
+    - A GC that defines a steady increase in scale with time,
+    - wrapping any kind of continuous cyclic drawing
 
 
 * sprite-view
+    * It's really a graphical context. More specifically, a set of graphical
+      contexts, since different parts of the sprite can have different 
+      transformation rules,
     * All sprite-views are relative. The state variables, like time, position,
       scale, etc., accumulate. So all methods for those have to be given a
       reference sprite-view, which is one that exists previous to the current
