@@ -1,3 +1,5 @@
 /snap
 /*.log
-/zblocks.sublime-*
+/znap.sublime-*
+/temp/
+/node_modules/

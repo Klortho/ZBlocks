@@ -1,13 +1,14 @@
-# ZBlocks
+# znap!
 
 I've been playing around a little bit with 
-[Snap!](http://snap.berkeley.edu/snapsource/snap.html), and I want to try to
-write a pure-functional graphics program.
+[Snap!](http://snap.berkeley.edu/snapsource/snap.html). This is a sandox to 
+try out some ideas for a more functional-programming oriented way of doing
+graphics and animations.
 
 # Running the server
 
 Clone the [`Snap!` repo](https://github.com/jmoenig/Snap--Build-Your-Own-Blocks)
-into the `snap` subdirectory here, and then enter
+into the `snap` subdirectory here, and then enter:
 
 ```
 ./run-server.sh

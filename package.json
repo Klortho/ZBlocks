@@ -1,0 +1,19 @@
+{
+  "name": "zblocks",
+  "version": "1.0.0",
+  "description": "I've been playing around a little bit with  [Snap!](http://snap.berkeley.edu/snapsource/snap.html), and I want to try to write a pure-functional graphics program.",
+  "main": "zblocks.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Klortho/ZBlocks.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Klortho/ZBlocks/issues"
+  },
+  "homepage": "https://github.com/Klortho/ZBlocks#readme"
+}
