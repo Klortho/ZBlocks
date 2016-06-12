@@ -2,8 +2,8 @@
 
 * Just a little bit of work, not too much!
 * Commoditize it:
-    * Change repo name to znap
-    * Make snap a git submodule
+    * (/)Change repo name to znap
+    * (/)Make snap a git submodule
     * put my example project into git.
     * Is there any way I can easily integrate with the online snap?
 

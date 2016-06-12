@@ -5,33 +5,47 @@ I've been playing around a little bit with
 try out some ideas for a more functional-programming oriented way of doing
 graphics and animations.
 
-# Running the server
+# Development
 
-Clone the [`Snap!` repo](https://github.com/jmoenig/Snap--Build-Your-Own-Blocks)
-into the `snap` subdirectory here, and then enter:
+To work on this, make sure you clone with `--recursive`, because it uses the
+Snap! repo as a submodule. Then, start the server:
 
 ```
+git clone --recursive git@github.com:Klortho/znap.git
 ./run-server.sh
 ```
 
-I am developing using a fork of the Snap! repo, but haven't found it necessary
-to override anything yet. I'm using proxying to overlay ZBlocks on top of 
-the Snap! repository.
+The submodule is [my fork of the Snap!](git@github.com:Klortho/snap.git), 
+but haven't found it necessary to override anything yet. I'm using a 
+proxying HTTP server, currently, to override the snap.html file, so that
+I can add my custom `<script>` tag.
 
 
-# ZBlocks code
+# The code
 
-Is in ZBlocks.js here.
+What I have so far is in two places:
 
-# Design
+* zbman.js - JavaScript code that I'm loading directly, from a `<script>` tag.
+  I think, eventually, there's no reason this couldn't be put into a 
+  Snap! block.
+* projects/*.xml - These are Snap! projects that are demos and/or tests.
 
-* All function blocks (all blocks?) are reporters; there are no "step" blocks.
+
+
+# Design ideas
+
+## Basic principles / goals
+
+* All blocks should be reporters -- no distinction from other types.
 * No mutations -- all "setter-type" blocks return a copy.
+
+
+## The view window
 
 * The display window is an immutable object which is a view into a complex
   data structure that describes the states of things as a function of time.
 
-* Example: "glide 5 steps in 1 second":
+* Example: Here's how "glide 5 steps in 1 second" might be thought of:
     * Returns a new sprite-view object, which is a chain of views,
     * The latest being:
         * time-translation such that t=0 relative to the end time of the
@@ -93,13 +107,28 @@ Implementation:
 * sv-list - a list of sv-atoms. These are not recursively nested -- they are
   always flattened.
 
-
 * Need a generic mechanism for defining a class:
     * a block: `new class` that returns a function
     * The function is the "global class method", that takes one list argument
 
 
-# Javascript blocks
+
+# Possible solutions
+
+## Flowy
+
+* [Demo page](http://test.tjvr.org/flowy4/) - this looks really cool.
+  It is data pipelines using scratch blocks.
+* By [blob8108](https://twitter.com/blob8108) - on Twitter. He posts a lot of
+  demo videos and such to twitter.
+* I posted some comments/questions to him
+  [here](https://scratch.mit.edu/discuss/topic/4464/?page=194#post-2041047).
+
+
+# How-tos / miscellaneous notes
+
+
+## Javascript blocks
 
 I saved a project called `zblocks`, where I was playing with defining 
 JavaScript function blocks. For example:
@@ -110,8 +139,6 @@ I created blocks for each of the following.
 I really like this style of "one function at a time, with tests". But it
 doesn't make sense to do all of this inside of snap blocks.
 So, I'm venturing to do it in zblocks.js.
-
-
 
 ```javascript
 // Can return a Snap! list object
@@ -131,53 +158,3 @@ var propDesc = { name: 'zzzz' };
 propDesc.toString = function(pd) { return 'floob'; };
 return new List(['y!', propDesc]);
 ```
-
-```javascript
-// !! Cannot JSON.stringify the sprite!
-// Because circular.
-var sprite = this;
-return JSON.stringify(sprite);
-```
-
-```javascript
-// Define a function that returns a string that
-// describes a property of an object
-var propDesc = function(obj, prop) {
-  return `${prop}: ${typeof obj[prop]}`;
-}
-return propDesc({a: 1}, 'a');
-```
-
-```javascript
-// List all the property names of the sprite
-var sprite = this;
-var sprops = Object.keys(sprite).sort();
-return new List(sprops);
-```
-
-```javascript
-// Parially apply propDesc
-var sprite = this;
-var propDesc = function(obj, prop) {
-  return `${prop}: ${typeof obj[prop]}`;
-}
-var spriteDesc = function(prop) {
-  return propDesc(sprite, prop);
-}
-return spriteDesc('heading');
-```
-
-```javascript
-// Describe all the properties of the sprite
-var sprite = this;
-var propDesc = function(obj, prop) {
-  return `${prop}: ${typeof obj[prop]}`;
-}
-var spriteDesc = function(prop) {
-  return propDesc(sprite, prop);
-}
-var sprops = Object.keys(sprite).sort()
-  .map(spriteDesc);
-return new List(sprops);
-```
-
