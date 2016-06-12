@@ -1,19 +1,26 @@
 {
-  "name": "zblocks",
-  "version": "1.0.0",
-  "description": "I've been playing around a little bit with  [Snap!](http://snap.berkeley.edu/snapsource/snap.html), and I want to try to write a pure-functional graphics program.",
-  "main": "zblocks.js",
+  "name": "znap",
+  "version": "0.0.1",
+  "description": "Tinkering with Snap! for fun.",
+  "main": "src/znap.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha -R mochawesome --reporter-options reportDir=reports,reportName=test-report test/*.test.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Klortho/ZBlocks.git"
+    "url": "git+https://github.com/Klortho/znap.git"
   },
   "author": "",
-  "license": "ISC",
+  "license": "PDDL",
   "bugs": {
-    "url": "https://github.com/Klortho/ZBlocks/issues"
+    "url": "https://github.com/Klortho/znap/issues"
   },
-  "homepage": "https://github.com/Klortho/ZBlocks#readme"
+  "homepage": "https://github.com/Klortho/znap#readme",
+  "dependencies": {
+    "ramda": "^0.21.0",
+    "transformation-matrix-js": "^2.6.5"
+  },
+  "devDependencies": {
+    "webpack": "^1.13.1"
+  }
 }

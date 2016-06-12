@@ -20,6 +20,9 @@ but haven't found it necessary to override anything yet. I'm using a
 proxying HTTP server, currently, to override the snap.html file, so that
 I can add my custom `<script>` tag.
 
+I also have [this js-fiddle](http://jsfiddle.net/klortho/gopr0buu/3/) where
+I am playing with canvas and the transformation matrix library.
+
 
 # The code
 
@@ -28,92 +31,137 @@ What I have so far is in two places:
 * zbman.js - JavaScript code that I'm loading directly, from a `<script>` tag.
   I think, eventually, there's no reason this couldn't be put into a 
   Snap! block.
-* projects/*.xml - These are Snap! projects that are demos and/or tests.
+* history/ - Snap! projects and related stuff that I've done along the way.
 
+
+# Immediate to-do
+
+* Get back to a working spiral generator, like I had at tag `square-spiral-v1`.
+  See [history/README.md](history/README.md). Here's a "flowchart" of how it
+  works:
+    * Green flag pressed - call Znap.init()
+    * In Snap!, initialize the sprite as you normally would (i.e. blocks for
+      `clear`, `pen up`, `move to 0, 0`, etc.)
+    * Execute the zoomer block. This needs to be re-written. It contains a
+      short JavaScript block than calls a Znap method, that instantiates a 
+      new animation context, and binds it to this sprite.
+    * Forever:
+        * Draw a square. For now, continue to use a custom drawing block that
+          calls a JS function to find out where it's *really* supposed to go.
+
+* How can integrate most easily with online snap? Can I auto-generate a Snap 
+  project that has all the javascript code in custom blocks?
+* For motion, can I reuse the existing blocks? See if I can hook into primitive
+  functions for setting state, so as to apply my transformations.
 
 
 # Design ideas
 
-## Basic principles / goals
+## Principles / goals
 
+* To the extent possible, make everything immutable, both conceptually and
+  in implementation. This is an exercise to see what the difficulties 
+  are.
 * All blocks should be reporters -- no distinction from other types.
-* No mutations -- all "setter-type" blocks return a copy.
+
+## The world
+
+* At any point when it is rendered, we have a data structure that 
+  represents everything we know about the world up to that point in time.
+* That model is a function (a set of functions), and time is one 
+  parameter. The return values give the renderer what it needs to draw.
+* As more info arrives (e.g. two things collide) a new world data structure
+  is created, layered on top of the previous, that contains overrides.
+* The world comprises a set of sprites
+
+## Sprites
+
+* No distinction between original sprites and clones.
+* Every sprite has an animation context, which is a function defining
+  its position and time coordinates.
+* It also has a chain of "actions", like "pen up", "move 5 spaces".
+  These, however, do not mutate anything; they are just functions that
+  describe the state of the sprite at any given time.
+* State variables:
+    * position (in it's own animation context)
+    * pen color
+    * direction
+    * pen size
+* As much as possible, make all the existing blocks work in the new 
+  framework. ***Question:*** Can I hook in to whatever primitive 
+  functions exist for changing state?
+
+## Animation context
+
+This is analogous to a gradient in graphics, in that it describes smooth 
+transitions between a set of "stops". Each stop is at a point in time, and
+the thing described by the stop is an affine transformation of the coordinates.
+
+An animation context comprises a linked list. The atoms of the list could
+be called graphical contexts (but there's no separate class for them).
+
+Some graphical contexts are stops, others are not. For example, say the ones
+marked with an asterisk are stops:
+
+```
+*root  <-  gc1  <-  *gc2  <-  gc3  <-  gc4  <-  *gc5
+```
+
+This describes three stops. The transforms at each stop are:
+
+- stop 0 - identity - the root is always a stop, and is always identity
+- stop 1 - gc1 X gc2
+- stop 2 - gc3 X gc4 X gc5
+
+Animation contexts are constructed using times relative to the previous, but 
+they just accumulate, and the times are all stored as absolute. So, no time
+transformations (yet).
+
+To convert a point's coordinates from a sprite's frame to the canvas frame:
+
+* Find the interval in which t appears - the prev and next graphical contexts
+* interpolate between those two
+* transform
 
 
-## The view window
+# Future
 
-* The display window is an immutable object which is a view into a complex
-  data structure that describes the states of things as a function of time.
+After getting the basic idea working, I would add some more features.
 
-* Example: Here's how "glide 5 steps in 1 second" might be thought of:
-    * Returns a new sprite-view object, which is a chain of views,
-    * The latest being:
-        * time-translation such that t=0 relative to the end time of the
-          previous sprite-view in the chain
-        * likewise, position-translation
-        * a function relating position to time: x = 5t
-    * The return value of this function can be chained to the next 
-      sprite-view.
+## Interpolation of time
 
-- graphical contexts - most generally, any graphical context is a chain of
-  general coordinate transformations.
-- transformations can be general, but the most common ones are
-    - linear (e.g. constant motion)
-    - geometric (e.g. steadily increasing scale)
-    - cyclic (steadily changing direction, hue, etc.)
+This wouldn't have to be as complex as trying to 
+figure out how to generalize an affine matrix to 4X4, but could be as 
+simple as attaching an easing function to any interval between animation 
+contexts.
+
+Then, you could animate harmonic oscillators, cycles, and all kinds of other
+things.
+
+## Garden of forking paths
+
+Sprite clones should inherit their parent's AC, but when they make a change,
+it should be theirs alone.
 
 
-* Example: spiral (of any underlying shape)
-    - A GC that defines a steady increase in scale with time,
-    - wrapping any kind of continuous cyclic drawing
+# How-tos / miscellaneous notes
+
+## Javascript blocks
+
+See the "JavaScript" example in Snap! (Open -> examples).
+
+See also the [history/](history/) folder here.
 
 
-* sprite-view
-    * It's really a graphical context. More specifically, a set of graphical
-      contexts, since different parts of the sprite can have different 
-      transformation rules,
-    * All sprite-views are relative. The state variables, like time, position,
-      scale, etc., accumulate. So all methods for those have to be given a
-      reference sprite-view, which is one that exists previous to the current
-      one in scope.
-    * The window itself supplies the "background" sprite view
+# History / milestones
 
-    * properties / methods:
-        * end-time - (optional) - this should be interpreted as: if there's 
-          a following-sibling, then this is the time at which that sibling's
-          state takes precedence over this one's
-        * position: this should be stored in a generic format, with setters and
-          getters for various coordinate systems.
-        * Current time and distance scales, relative to any preview view.
-        * calculator functions for distances, durations, etc.
-
-    * Structure: chained and nested
-        * chaining describes a sequence of "actions", one following another.
-          Each next one takes that previous one's last state as its starting
-          point
-        * nesting allows an over-arching scale, duration, or other 
-          transformation to be applied to a child sequence. This is really a
-          "graphical context".
-
-
-Start simple: chained (no nesting); and only (x,y) position. No color, scale,
-time-translations, or anything.
-
-Implementation:
-
-* sv-atom - an object. Think of it like a list. It can be assigned to a 
-  variable. We'll have separate blocks for each of its methods.
-
-* sv-list - a list of sv-atoms. These are not recursively nested -- they are
-  always flattened.
-
-* Need a generic mechanism for defining a class:
-    * a block: `new class` that returns a function
-    * The function is the "global class method", that takes one list argument
+See [history/README.md](history/README.md) for some intermediate results.
 
 
 
-# Possible solutions
+# Other software
+
+Here is a list of other work that might be relevant.
 
 ## Flowy
 
@@ -124,37 +172,3 @@ Implementation:
 * I posted some comments/questions to him
   [here](https://scratch.mit.edu/discuss/topic/4464/?page=194#post-2041047).
 
-
-# How-tos / miscellaneous notes
-
-
-## Javascript blocks
-
-I saved a project called `zblocks`, where I was playing with defining 
-JavaScript function blocks. For example:
-
-![JavaScript block example](js-block-example.png)
-
-I created blocks for each of the following.
-I really like this style of "one function at a time, with tests". But it
-doesn't make sense to do all of this inside of snap blocks.
-So, I'm venturing to do it in zblocks.js.
-
-```javascript
-// Can return a Snap! list object
-return new List(['y!', 'z!'])
-```
-
-```javascript
-// Can return a JS object as a list item
-const propDesc = { name: 'zzzz' };
-return new List(['y!', propDesc]);
-```
-
-```javascript
-// Yes, Snap! uses the toString() method to
-// display the list items values
-var propDesc = { name: 'zzzz' };
-propDesc.toString = function(pd) { return 'floob'; };
-return new List(['y!', propDesc]);
-```

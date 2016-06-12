@@ -1,4 +1,7 @@
+/dist/
+/.idea/
 /*.log
-/znap.sublime-*
-/temp/
 /node_modules/
+/reports/
+/temp/
+/znap.sublime-*
