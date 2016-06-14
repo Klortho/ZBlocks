@@ -33,6 +33,17 @@ function pointsEqual(p0, p1) {
   assert.closeEnough(p0.y, p1.y);
 }
 
+// Return a sample animation context for testing.
+function sampleAC() {
+  return new AnimationContext()
+    .scale(1, 2, 2)
+    .rotateDeg(7, 45)
+    .rotateDeg(null, 45)
+    .rotateDeg(null, 45)
+    .shearX(3, 2);
+}
+
+
 describe('AnimationContext class', function() {
   it('can be constructed as the root of the chain', function () {
     const ac = new AnimationContext();
@@ -81,5 +92,122 @@ describe('AnimationContext class', function() {
     const ac1 = ac0.scale(1, 2, 2);
     const p1 = ac1.applyToPoint(new Point(10, 100));
     pointsEqual(p1, new Point(20, 200));
+  });
+
+  it ('can store a chain of transformations', function() {
+    const ac = sampleAC();
+    assert.instanceOf(ac, AnimationContext);
+    const chain = ac.graphicalContexts();
+    assert.isArray(chain);
+    assert.equal(chain.length, 6);
+
+    const [ac0, ac1, ac2, ac3, ac4, ac5] = chain;
+
+    const embiggen = (new Matrix()).scale(2, 2);
+    checkAnimationContext(ac1, {
+      prev: ac0,
+      isRoot: false,
+      relTime: 1,
+      time: 1,
+      isStop: true,
+      prevStop: ac0,
+      matrix: embiggen,
+      stopProduct: embiggen,
+      product: embiggen,
+    });
+
+    const rotate_45 = (new Matrix()).rotateDeg(45);
+    const product2 = embiggen.clone();
+    product2.multiply(rotate_45);
+    checkAnimationContext(ac2, {
+      prev: ac1,
+      isRoot: false,
+      relTime: 7,
+      time: 8,
+      isStop: true,
+      prevStop: ac1,
+      matrix: rotate_45,
+      stopProduct: rotate_45,
+      product: product2,
+    });
+
+    const product3 = product2.clone().multiply(rotate_45);
+    checkAnimationContext(ac3, {
+      prev: ac2,
+      isRoot: false,
+      relTime: 0,
+      time: 8,
+      isStop: false,
+      prevStop: ac2,
+      matrix: rotate_45,
+      stopProduct: rotate_45,
+      product: product3,
+    });
+
+    const rotate_90 = rotate_45.clone().rotateDeg(45);
+    const product4 = product3.clone().multiply(rotate_45);
+    checkAnimationContext(ac4, {
+      prev: ac3,
+      isRoot: false,
+      relTime: 0,
+      time: 8,
+      isStop: false,
+      prevStop: ac2,
+      matrix: rotate_45,
+      stopProduct: rotate_90,
+      product: product4,
+    });
+
+    const shear = (new Matrix()).shearX(2);
+    const stopProd5 = rotate_90.clone().multiply(shear); 
+    const product5 = product4.clone().multiply(shear);
+    checkAnimationContext(ac5, {
+      prev: ac4,
+      isRoot: false,
+      relTime: 3,
+      time: 11,
+      isStop: true,
+      prevStop: ac2,
+      matrix: shear,
+      stopProduct: stopProd5,
+      product: product5,
+    });
+  })
+
+  it ('can get the right pair of graphical contexts', function() {
+    // Test cases. Given the value for time, we'll check that the matchingPair
+    // routine finds the expected pair of gc's to use for interpolation.
+    const tests = [
+      { time: 0,
+        expect: [0, 0] },
+      { time: 0.8,
+        expect: [0, 1] },
+      { time: 1,
+        expect: [1, 1] },
+      { time: 1.1,
+        expect: [1, 2] },
+      { time: 7.9,
+        expect: [1, 2] },
+      { time: 8,
+        expect: [2, 2] },
+      { time: 10,
+        expect: [2, 5] },
+      { time: 11,
+        expect: [5, 5] },
+      { time: 12,
+        expect: [2, 5] },
+    ];
+
+    const ac = sampleAC();
+    const gcs = ac.graphicalContexts();
+    const matchingPair = AnimationContext.matchingPair;
+
+    const printGC = gc => console.log('gc #' + gc.i);
+
+    tests.forEach((test, i) => {
+      const pair = matchingPair(ac._firstPair(), test.time);
+      assert.strictEqual(pair[0], gcs[test.expect[0]]);
+      assert.strictEqual(pair[1], gcs[test.expect[1]]);
+    })
   });
 });

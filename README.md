@@ -143,6 +143,13 @@ things.
 Sprite clones should inherit their parent's AC, but when they make a change,
 it should be theirs alone.
 
+## Capturing of canvas animations
+
+Using the library 
+[spite/ccapture.js](https://github.com/spite/ccapture.js), you can 
+capture canvas-based animations into little videos.
+
+
 
 # How-tos / miscellaneous notes
 
@@ -171,4 +178,14 @@ Here is a list of other work that might be relevant.
   demo videos and such to twitter.
 * I posted some comments/questions to him
   [here](https://scratch.mit.edu/discuss/topic/4464/?page=194#post-2041047).
+
+## pixie / visual
+
+This is a completely independent (I think) port of Scratch blocks to 
+JavaScript.
+
+On GitHub:
+
+* [nathan/pixie](https://github.com/nathan/pixie)
+* [nathan/visual](https://github.com/nathan/visual)
 

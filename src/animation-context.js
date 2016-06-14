@@ -23,6 +23,10 @@ class AnimationContext {
     const prev = this.prev = _prev || null;
     const isRoot = this.isRoot = (_prev == null);
 
+    // For diagnostics, give each one an the index number of where it appears
+    // in the chain
+    this.i = isRoot ? 0 : this.prev.i + 1;
+    
     // relTime, the member, is always a number
     const relTime = this.relTime = 
         isRoot ? 0 
@@ -52,20 +56,18 @@ class AnimationContext {
         (isRoot || prev.isStop) ? matrix 
       : prev.stopProduct.clone().multiply(matrix);
 
-    // The cumulative transform -- only set for stops
+    // The cumulative transform
     this.product = 
         isRoot ? matrix 
-      : isStop ? this.prevStop.matrix.clone().multiply(this.stopProduct)
-      : null;
+      : this.prevStop.product.clone().multiply(this.stopProduct);
   }
 
 
-
-  // All of the following return a new AnimationContext object that describes
-  // an interpolated transformation of this one. 
-  // Almost all of these are derived from, and delegate to, methods defined in 
+  // The following factory methods return a new AnimationContext object that 
+  // describes a new transformation derived from this one. 
+  // Almost all of these methods delegate to methods defined in 
   // the Matrix object. See 
-  // https://github.com/epistemex/transformation-matrix-js#quick-overview.
+  // https://github.com/epistemex/transformation-matrix-js
 
   // Some of these delegate to Matrix class methods, that create new Matrix 
   // objects, while others to methods that mutate the Matrix objects. In the 
@@ -102,6 +104,7 @@ class AnimationContext {
     return new AnimationContext(null, this, t, m);
   }
 
+
   // This takes a point in the local coordinates, and returns the corresponding
   // point in absolute, using the final product matrix. This doesn't do anything
   // with time.
@@ -113,14 +116,31 @@ class AnimationContext {
   }
 
   // This interpolates the transformation according to the time
-  applyPointTime(p0, t) {
-    // Find the prev and next for the interpolation. There are these cases:
-    // - t matches a stop's time: no iterpolation, just use the stop
-    // - t is after the last entry:
-    //     - there is one and only one entry, root: no interpolation, use root
-    //     - interpolate using last and last.prev
-    // - t is between two entries: interpolate
-    
+  applyToPointTime(p0, t) {
+    if (t < 0) throw RangeError('Invalid time');
+
+    [prev, next] = matchingPair(this._firstPair, t);
+  }
+
+  // Private helper function, used with matchingPair (below).
+  // This first "pair" to examine has `this` (the latest gc) in the "next"
+  // slot, and this.prev in the prev slot, if possible. If `this` is root,
+  // then it's not possible, so we'd return [this, this].
+  _firstPair() {
+    return [ (this.isRoot ? this: this.prevStop), this ];
+  }
+
+  // Returns the chain of graphical contexts as an array
+  graphicalContexts() {
+    const ret = [];
+    for (var gc = this; gc != null; gc = gc.prev) {
+      ret.unshift(gc);
+    }
+    return ret;
+  }
+
+  toString() {
+    return 'AnimationContext #' + this.i;
   }
 }
 
@@ -131,16 +151,16 @@ const transformMethods = [
   'flipX',
   'flipY',
   'reflectVector',
-  'rotate',
-  'rotateDeg',
-  'rotateFromVector',
-  'scale',
-  'scaleU',
-  'scaleX',
-  'scaleY',
-  'shear',
-  'shearX',
-  'shearY',
+  'rotate',             // (angle)
+  'rotateDeg',          // (angle)
+  'rotateFromVector',   // (x, y)
+  'scale',              // (sx, sy)
+  'scaleU',             // (f)   - uniform scale
+  'scaleX',             // (sx)
+  'scaleY',             // (sy)
+  'shear',              // (sx, sy)
+  'shearX',             // (sx)
+  'shearY',             // (sy)
   'skew',
   'skewDeg',
   'skewX',
@@ -159,4 +179,48 @@ transformMethods.forEach(methodName => {
 });
 
 AnimationContext.defaults = {};
+
+
+
+// Function to return the matching prev/next pair of graphical contexts to use
+// for an interpolation, by stepping backwards through the linked list. There 
+// are these cases:
+// 1. t matches a stop's time: no interpolation, just use the stop
+// 2. t is after the last entry:
+//     a. there is one and only one entry, root: no interpolation, use root
+//     b. interpolate using last.prev and last
+// 3. t is between two entries: interpolate
+
+// We recurse through all possible "pairs" of prev/next stops. The scare 
+// quotes are because some "pairs" have the same stop in both slots.
+// We are guaranteed that prev.time <= next.time.
+
+// Given a pair of stops, this function returns the previous pair, or null
+const prevPair = pair => {
+  const gc0 = pair[0];
+  const gc1 = pair[1];
+  const ret =
+      gc0.isRoot && gc1.isRoot ? null   // nowhere to go
+    : gc0.isRoot ? [gc0, gc0]
+    : [gc0.prevStop, gc0];
+  return ret;
+};
+
+
+// This recurses, to return the matching [prev, next] pair, given a 
+// starting pair and the time. It will always return a valid pair of gcs, if
+// t > 0.
+const matchingPair = AnimationContext.matchingPair = function(pair, t) {
+  const gc0 = pair[0];
+  const gc1 = pair[1];
+  const ret =  
+      gc1.time < t ? pair
+    : gc1.time == t ? [gc1, gc1]
+    : gc0.time < t ? pair
+    : gc0.time == t ? [gc0, gc0]
+    : matchingPair(prevPair(pair), t);
+  return ret;
+};
+
+
 module.exports = AnimationContext;
