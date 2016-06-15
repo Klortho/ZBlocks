@@ -205,9 +205,51 @@ describe('AnimationContext class', function() {
     const printGC = gc => console.log('gc #' + gc.i);
 
     tests.forEach((test, i) => {
-      const pair = matchingPair(ac._firstPair(), test.time);
+      const pair = matchingPair(ac._lastPair(), test.time);
       assert.strictEqual(pair[0], gcs[test.expect[0]]);
       assert.strictEqual(pair[1], gcs[test.expect[1]]);
     })
+  });
+
+  it ('can interpolate a transformation over time', function() {
+    const p0 = new Point(100, 300);
+    const tests = [
+      { time: 0, 
+        expected: new Point(100, 300), },
+    /*
+      { time: 0.8,
+        expected: new Point(100, 300), },
+      { time: 1,
+        expected: new Point(100, 300), },
+      { time: 1.1,
+        expected: new Point(100, 300), },
+      { time: 7.9,
+        expected: new Point(100, 300), },
+      { time: 8,
+        expected: new Point(100, 300), },
+      { time: 10,
+        expected: new Point(100, 300), },
+      { time: 11,
+        expected: new Point(100, 300), },
+      { time: 12,
+        expected: new Point(100, 300), },
+    */
+    ];
+
+    const ac = sampleAC();
+    const gcs = ac.graphicalContexts();
+    const matchingPair = AnimationContext.matchingPair;
+
+    tests.forEach((test, i) => {
+      // redo tests from last time
+      const pair = matchingPair(ac._lastPair(), test.time);
+      assert.equal(pair[0].i, 0);
+      assert.equal(pair[1].i, 0);
+
+      const p1 = ac.applyToEvent(p0, test.time);
+      console.log('result of interpolated xform: ', p1);
+      pointsEqual(p1, test.expected);
+    });
+
   });
 });

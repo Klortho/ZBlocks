@@ -12,6 +12,11 @@ const Point = require('./point.js');
 const utils = require('./utils.js');
 
 
+// FIXME: temporary
+const assert = pred => {
+  if (!pred) throw Error('assertion failed');
+};
+
 class AnimationContext {
 
   // Constructor. If _previous is null or absent, then this is the root, and 
@@ -115,18 +120,39 @@ class AnimationContext {
     return p1;
   }
 
-  // This interpolates the transformation according to the time
-  applyToPointTime(p0, t) {
-    if (t < 0) throw RangeError('Invalid time');
 
-    [prev, next] = matchingPair(this._firstPair, t);
+  // This interpolates the transformation according to the time.
+  applyToEvent(p0, t) {
+    if (t < 0) throw RangeError('Invalid time');
+    const ac = this;
+
+    const pair = matchingPair(ac._lastPair(), t);
+    const gc0 = pair[0];
+    const gc1 = pair[1];
+    assert(gc0.i === 0 && gc1.i === 0);
+
+    var m;
+    if (gc0.i === gc1.i) 
+      m = gc0.matrix;
+    else {
+      const t0 = gc0.time;
+      const t1 = gc1.time;
+      const rt = (t - t0) / (t1 - t0);
+      console.log('t0: ' + t0 + ', t1: ' + t1 + ', rt: ' + rt);
+      m = gc0.matrix.interpolateAnim(gc1.matrix, rt);
+    }
+    console.log('final matrix: ', m);
+    const result = m.applyToPoint(p0.x, p0.y);
+    const p1 = new Point(result);
+    return p1;
   }
 
   // Private helper function, used with matchingPair (below).
-  // This first "pair" to examine has `this` (the latest gc) in the "next"
-  // slot, and this.prev in the prev slot, if possible. If `this` is root,
-  // then it's not possible, so we'd return [this, this].
-  _firstPair() {
+  // The first "pair" to examine is the last pair in the chain. It has `this` 
+  // (the latest gc) in the "next" slot, and this.prev in the prev slot, if 
+  // possible. If `this` is root, then it's not possible, so we'd return 
+  // [this, this].
+  _lastPair() {
     return [ (this.isRoot ? this: this.prevStop), this ];
   }
 
