@@ -20,86 +20,134 @@
     <canvas id="canvas" width="600" height="300"></canvas>
 
     <script>
-      // get some data from the environment
-      const canvas = document.getElementById('canvas');
-      const width = canvas.width;
-      const height = canvas.height;
 
-      // ----- good up to here ------
+    const now = function() {
+      var today = new Date();
+      return today.getSeconds() + today.getMilliseconds() / 2000;
+    };
+    const startTime = now();
 
-      // graphical context of the canvas
-      const ctx = canvas.getContext('2d');
+    // get some data from the environment
+    const canvas = document.getElementById('canvas');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // graphical context of the canvas
+    const ctx = canvas.getContext('2d');
+    ctx.globalCompositeOperation = 'destination-over';
 
 
-      // This is our centalized object that keeps the mutable master matrix.
-      // Whenever the matrix changes, this sets ctx as well.
-      // "mm" == matrix man.
-      const mm = {
-        // The default baseline root matrix, that can't be overridden
-        root: (new Matrix()).translate(width/2, height/2),
+    // This is our centalized object that keeps the mutable master matrix.
+    // Whenever the matrix changes, this sets ctx as well.
+    // "mm" == matrix man.
+    const mm = {
+      // these are initialized right away, every drawing frame
+      ctx: null,
+      current: null,
 
-        // Current matrix - this is initialize right away with root
-        current: null,
+      // The default baseline root matrix, that can't be overridden
+      root: (new Matrix()).translate(width/2, height/2),
 
-        // reset to root
-        reset: () => mm.set(mm.root),
+      // reset (initialize for a drawing frame)
+      reset: ctx => {
+        mm.ctx = ctx;
+        mm.set(mm.root);
+      },
 
-        set: function(m) {
-          console.log('setting transform to ', m);
-          mm.current = m;
-          m.applyToContext(ctx);
-        },
+      set: function(m) {
+        mm.current = m;
+        m.applyToContext(ctx);
+      },
 
-        // Apply a new transformation on top of the old one
-        multiply: function(m) {
-          console.log('multiplying matrix ', m);
-          mm.set(mm.current.clone().multiply(m));
-        },
-      };
+      // Apply a new transformation on top of the old one
+      multiply: function(m) {
+        mm.set(mm.current.clone().multiply(m));
+      },
+    };
+
+    // utility function - get a random new color
+    const randomColor = function() {
+      // split a sum color value of 200 at random
+      const bases = [1, 2, 3].map(Math.random);
+      const sum = bases[0] + bases[1] + bases[2];
+      const rgb = bases.map(b => Math.floor(200 * b / sum));
+      const rgba = rgb.concat(0.2);
+      const str = 'rgba(' + rgba.join(', ') + ')'; 
+      console.log('random color: ', str);
+      return str;
+    };
+
+
+    // This draws a fixed size-position box (in whatever matrix it is embedded
+    // within) with a random color
+    const box = function() {
+      console.log('drawing a box');
+      ctx.fillStyle = randomColor();
+      ctx.fillRect (-50, -30, 100, 60);
+    };
+
+    // test set of transform matrices
+    var tx = [
+      (new Matrix()),
+      (new Matrix()).scale(2, 2),
+      (new Matrix()).rotateDeg(45),
+      (new Matrix()).rotateDeg(45),
+      (new Matrix()).rotateDeg(45),
+      (new Matrix()).shearX(2),
+    ];
+
+    // At these instants in time, switch to these matrices for interpolation:
+    var times = [
+      { t0: 0, 
+        t1: 1,
+        m0: tx[0],
+        m1: tx[1], },
+      { t0: 1,
+        t1: 8,
+        m0: tx[1],
+        m1: tx[2], },
+      { t0: 8,
+        t1: 11,
+        m0: tx[2],
+        m1: (new Matrix()).multiply(tx[3]).multiply(tx[4]).multiply(tx[5]), },  
+    ];
+
+    // which interval are we in
+    function getInterval(t) {
+      return
+          times[0].t0 <= t && t < times[0].t1 ? 0
+        : times[1].t0 <= t && t < times[1].t1 ? 1
+        : 2;
+    }
+
+    // Refresh the entire canvas every frame.
+    function draw() {
       mm.reset();
+      ctx.clearRect(0, 0, width, height); // clear canvas
+      ctx.save();
 
+        var t = now();
+        interval = getInterval();
 
-      // utility function - get a random new color
-      const randomColor = function() {
-        // split a sum color value of 200 at random
-        const bases = [1, 2, 3].map(Math.random);
-        const sum = bases[0] + bases[1] + bases[2];
-        const rgb = bases.map(b => Math.floor(200 * b / sum));
-        const rgba = rgb.concat(0.2);
-        const str = 'rgba(' + rgba.join(', ') + ')'; 
-        console.log('random color: ', str);
-        return str;
-      };
+        const t0 = times[0].t0;
+        const t1 = times[0].t1;
+        const m0 = times[0].m0;
+        const m1 = times[0].m1;
 
-      // This draws a fixed size-position box (in whatever matrix it is embedded
-      // within) with a random color
-      const box = function() {
-        console.log('drawing a box');
-        ctx.fillStyle = randomColor();
-        ctx.fillRect (-50, -30, 100, 60);
-      };
+        var m;
+        if (t0 == t1) m = m0;
+        else {
+          const rt = (t - t0) / (t1 - t0);
+          m = m0.interpolateAnim(m1, rt);
+        }
 
-      // test set of transform matrices
-      var transforms = [
-        (new Matrix()),
-        (new Matrix()).scale(2, 2),
-        (new Matrix()).rotateDeg(45),
-        (new Matrix()).rotateDeg(45),
-        (new Matrix()).rotateDeg(45),
-        (new Matrix()).shearX(2),
-      ];
-
-      // This cycles through the set, multiplying the next matrix on top of
-      // the current.
-      var next = 0;
-      const renderNext = function() {
-        console.log('rendering next');
-        mm.multiply(transforms[next]);
+        mm.set(m);
         box();
-        next = (next + 1) % 6;
-      };
 
-      canvas.onclick = renderNext;
+      ctx.restore();
+    }
+
+    setInterval(draw, 2000);
 
     </script>
   </body>
