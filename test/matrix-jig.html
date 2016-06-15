@@ -14,39 +14,85 @@
   </head>
   <body>
     <p>
-      For example:
+      The script on this page manages its own transformation matrix chain, and
+      each time you click on the box, it computes the next matrix, and overrides
+      anything set by the canvas.
     </p>
-<pre>var m0 = new Matrix();
-var m1 = m.clone();
-
-m0 === m1;       //=> false
-m0.isEqual(m1);  //=> true
-</pre>
-
-    <canvas id="canvas" width="800" height="400"></canvas>
+    <canvas id="canvas" width="600" height="300"></canvas>
 
     <script>
-      var canvas = document.getElementById('canvas');
-      var ctx = canvas.getContext('2d');
+      // get some data from the environment
+      const canvas = document.getElementById('canvas');
+      const width = canvas.width;
+      const height = canvas.height;
 
-        var double = new Matrix().scale(2, 2);
+      // graphical context of the canvas
+      const ctx = canvas.getContext('2d');
 
-        var zoomer = (new Matrix()).interpolate( double, 1.5 ); 
+      // This is the variable we'll use to track the transform matrix.
+      var matrix = null;
 
-        zoomer.applyToContext( ctx );
+      // This draws a fixed size-position box (in whatever matrix it is embedded
+      // within) with a random color
+      const box = function() {
+        console.log('drawing a box');
+        ctx.fillStyle = randomColor();
+        ctx.fillRect (-50, -30, 100, 60);
+      };
 
-        ctx.fillStyle = "rgba(200, 0, 0, 0.5)";
-        ctx.fillRect (10, 10, 50, 50);
+      // Sets (or resets) the transformation, and draws the box. This must 
+      // be called before any `apply`.
+      const set = function(m) {
+        console.log('setting transform to ', m);
+        matrix = m;
+        m.applyToContext(ctx);
+        box();
+      };
 
-        ctx.fillStyle = "rgba(0, 0, 200, 0.5)";
-        ctx.fillRect (30, 30, 50, 50);
+      // Applies the new transformation to the old one, and draws the box
+      const apply = function(m) {
+        console.log('applying (layering) matrix ', m);
+        if (matrix == null) throw Error('the Matrix instance object is not ready');
+        set(matrix.multiply(m));
+      };
 
-        double.applyToContext( ctx );
-        ctx.fillStyle = "rgba(200, 0, 0, 0.5)";
-        ctx.fillRect (10, 10, 50, 50);
+      // utility function - get a random new color
+      const randomColor = function() {
+        // split a sum color value of 200 at random
+        const bases = [1, 2, 3].map(Math.random);
+        const sum = bases[0] + bases[1] + bases[2];
+        const rgb = bases.map(b => Math.floor(200 * b / sum));
+        const rgba = rgb.concat(0.2);
+        const str = 'rgba(' + rgba.join(', ') + ')'; 
+        console.log('random color: ', str);
+      };
 
+      set((new Matrix()).translate(width/2, height/2));
 
+      var m = [
+        (new Matrix()),
+        (new Matrix()).scale(2, 2),
+        (new Matrix()).rotateDeg(45),
+        (new Matrix()).rotateDeg(45),
+        (new Matrix()).rotateDeg(45),
+        (new Matrix()).shearX(2),
+      ];
 
+      // This cycles through the set
+      const renderNext = (function() {
+        console.log('creating the rendernext closure');
+        var next = 0;
+        return function() {
+          console.log('rendering next');
+          apply(m[next]);
+          next = (next + 1) % 6;
+        }
+      })();
+
+      canvas.onclick = function() {
+        console.log('click');
+        renderNext();
+      };
 
     </script>
   </body>
