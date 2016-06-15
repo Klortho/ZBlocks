@@ -241,11 +241,6 @@ describe('AnimationContext class', function() {
     const matchingPair = AnimationContext.matchingPair;
 
     tests.forEach((test, i) => {
-      // redo tests from last time
-      const pair = matchingPair(ac._lastPair(), test.time);
-      assert.equal(pair[0].i, 0);
-      assert.equal(pair[1].i, 0);
-
       const p1 = ac.applyToEvent(p0, test.time);
       console.log('result of interpolated xform: ', p1);
       pointsEqual(p1, test.expected);
