@@ -129,7 +129,6 @@ class AnimationContext {
     const pair = matchingPair(ac._lastPair(), t);
     const gc0 = pair[0];
     const gc1 = pair[1];
-    assert(gc0.i === 0 && gc1.i === 0);
 
     var m;
     if (gc0.i === gc1.i) 

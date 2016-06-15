@@ -29,8 +29,9 @@ function checkAnimationContext(actual, criteria) {
 }
 
 function pointsEqual(p0, p1) {
-  assert.closeEnough(p0.x, p1.x);
-  assert.closeEnough(p0.y, p1.y);
+  const msg = `point received ${p0} does not equal expected ${p1}`;
+  assert.closeEnough(p0.x, p1.x, msg);
+  assert.closeEnough(p0.y, p1.y, msg);
 }
 
 // Return a sample animation context for testing.
@@ -216,24 +217,23 @@ describe('AnimationContext class', function() {
     const tests = [
       { time: 0, 
         expected: new Point(100, 300), },
-    /*
       { time: 0.8,
-        expected: new Point(100, 300), },
+        expected: new Point(180, 540), },
       { time: 1,
-        expected: new Point(100, 300), },
+        expected: new Point(200, 600), },
       { time: 1.1,
-        expected: new Point(100, 300), },
+        expected: new Point(191.8751714214514, 597.90470899715), },
+      // FIXME: these are wrong:
       { time: 7.9,
-        expected: new Point(100, 300), },
+        expected: new Point(-140.21387682426268, 288.4746431947159), },
       { time: 8,
-        expected: new Point(100, 300), },
+        expected: new Point(-141.42135623730948, 282.842712474619), },
       { time: 10,
-        expected: new Point(100, 300), },
+        expected: new Point(18.946869098150586, 315.65965239697255), },
       { time: 11,
-        expected: new Point(100, 300), },
+        expected: new Point(700, 300), },
       { time: 12,
-        expected: new Point(100, 300), },
-    */
+        expected: new Point(174.23829615966304, 263.8958433764684), },
     ];
 
     const ac = sampleAC();

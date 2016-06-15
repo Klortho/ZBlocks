@@ -25,6 +25,10 @@ class Point extends Vector {
   add(aVector) {
     return new Point(this.x + aVector.x, this.y + aVector.y);
   }
+
+  toString() {
+    return `Point(${this.x}, ${this.y})`;
+  }
 }
 
 Point.ORIGIN = new Point(0, 0);
