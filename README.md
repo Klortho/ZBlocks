@@ -8,10 +8,12 @@ graphics and animations.
 # Development
 
 To work on this, make sure you clone with `--recursive`, because it uses the
-Snap! repo as a submodule. Then, start the server:
+Snap! repo as a submodule. Then:
 
 ```
 git clone --recursive git@github.com:Klortho/znap.git
+cd znap
+npm install
 ./run-server.sh
 ```
 

@@ -8,7 +8,6 @@ const Point = require('../src/point.js');
 const R = require('ramda');
 
 
-
 function checkAnimationContext(actual, criteria) {
   Object.keys(criteria).forEach(function(k) {
     const matches = (...list) => list.indexOf(k) != -1;
