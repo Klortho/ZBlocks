@@ -138,7 +138,7 @@ class AnimationContext {
       const t1 = gc1.time;
       const rt = (t - t0) / (t1 - t0);
       console.log('t0: ' + t0 + ', t1: ' + t1 + ', rt: ' + rt);
-      m = gc0.matrix.interpolateAnim(gc1.matrix, rt);
+      m = gc0.matrix.interpolate(gc1.matrix, rt);
     }
     console.log('final matrix: ', m);
     const result = m.applyToPoint(p0.x, p0.y);

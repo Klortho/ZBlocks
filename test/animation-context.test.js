@@ -37,9 +37,9 @@ function pointsEqual(p0, p1) {
 function sampleAC() {
   return new AnimationContext()
     .scale(1, 2, 2)
-    .rotateDeg(7, 45)
-    .rotateDeg(null, 45)
-    .rotateDeg(null, 45)
+    .rotateDeg(7, 135)
+    .rotateDeg(1, 45)
+    .rotateDeg(1, 45)
     .shearX(3, 2);
 }
 

@@ -51,6 +51,8 @@ What I have so far is in two places:
         * Draw a square. For now, continue to use a custom drawing block that
           calls a JS function to find out where it's *really* supposed to go.
 
+* Remove the distinction in animation-context between stops and non-stops.
+  They are all stops.
 * How can integrate most easily with online snap? Can I auto-generate a Snap 
   project that has all the javascript code in custom blocks?
 * For motion, can I reuse the existing blocks? See if I can hook into primitive
