@@ -152,65 +152,100 @@ class Stops {
 }
 
 
-function run() {
-  const startTime = now();
+// Stage is an animation driver. Different scences/animations should be
+// instances of this, not subclasses.
+// Usage:
+//   my solarSystem = new Stage({
+//     initialize: function() { this.sun = ...; },
+//     draw: function(ctx) { ... },
+//   });
 
-  var sun = new Image();
-  var moon = new Image();
-  var earth = new Image();
+class Stage {
+  constructor(props) {
+    // defaults here:
+    this.speed = 10;
 
-  function init() {
-    sun.src = 'https://mdn.mozillademos.org/files/1456/Canvas_sun.png';
-    moon.src = 'https://mdn.mozillademos.org/files/1443/Canvas_moon.png';
-    earth.src = 'https://mdn.mozillademos.org/files/1429/Canvas_earth.png';
-    window.requestAnimationFrame(draw);
+    // Mix in the options (overrides) and methods passed to us
+    if (typeof props === 'object' && props) {
+      Object.keys(props).forEach(key => {
+        const prop = props[key];
+        this[key] = typeof prop === 'function' ? prop.bind(this) : prop;
+      });
+    }
+
+    // call initialize if we've got it
+    if (this.hasOwnProperty('initialize')) this.initialize();
+
+    // Get the canvas and the context object
+    const canvas = this.canvas = document.getElementById('canvas');
+    const width = this.width = canvas.width;
+    const height = this.height = canvas.height;
+    const ctx = this.ctx = canvas.getContext('2d');
+    ctx.globalCompositeOperation = 'destination-over';
+
+    // `animate` gets passed to the window.requestAnimationFrame function.
+    // It draws one frame, and then loops. It is kicked off by start()
+    this.animate = () => {
+      const t = now() * this.speed;
+      this.draw(t);
+      window.requestAnimationFrame(this.animate);
+    };
   }
 
-  function draw() {
-    var ctx = document.getElementById('canvas').getContext('2d');
+  start() {
+    this.startTime = now();
+    window.requestAnimationFrame(this.animate);
+  }
+}
 
-    ctx.globalCompositeOperation = 'destination-over';
-    ctx.clearRect(0,0,300,300); // clear canvas
+const solarSystem = new Stage({
+  initialize: function() {
+    this.sun = new Image();
+    this.sun.src = 'https://mdn.mozillademos.org/files/1456/Canvas_sun.png';
+    this.earth = new Image();
+    this.earth.src = 'https://mdn.mozillademos.org/files/1429/Canvas_earth.png';    
+  },
 
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.strokeStyle = 'rgba(0,153,255,0.4)';
+  draw: function(t) {
+    const stage = this;
+    const ctx = stage.ctx;
+
+    ctx.clearRect(0, 0, 300, 300); // clear canvas
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.strokeStyle = 'rgba(0, 153, 255, 0.4)';
 
     ctx.save();
       ctx.translate(150, 150);
 
+      // here's how to apply a transform from a Matrix object
+      const m = new Matrix().scale(0.5, 0.5);
+      //m.applyToContext(ctx);    // this overrides completely
+      // but this multiplies:
+      ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
+
       // Earth
-      var time = now();
-      ctx.rotate( ((2*Math.PI)/60)*time);
-      ctx.translate(105,0);
-      ctx.fillRect(0,-12,50,24); // Shadow
-      ctx.drawImage(earth,-12,-12);
+      ctx.rotate(2 * Math.PI * t / 60);
+      ctx.translate(105, 0);
+      ctx.fillRect(0, -12, 50, 24); // Shadow
+      ctx.drawImage(stage.earth, -12, -12);
 
     ctx.restore();
     
     ctx.beginPath();
-    ctx.arc(150,150,105,0,Math.PI*2,false); // Earth orbit
+    ctx.arc(150, 150, 105, 0, 2 * Math.PI, false); // Earth orbit
     ctx.stroke();
    
-    ctx.drawImage(sun,0,0,300,300);
+    ctx.drawImage(stage.sun, 0, 0, 300, 300);
+  },
+});
 
-    window.requestAnimationFrame(draw);
-  }
 
-  init();
-}
 
 
 function run2() {
   const startTime = now();
 
-  // Get the canvas
-  const canvas = document.getElementById('canvas');
-  const width = canvas.width;
-  const height = canvas.height;
-
-  // Get the canvas context object
-  const ctx = canvas.getContext('2d');
-  ctx.globalCompositeOperation = 'destination-over';
 
 
   // Refresh the entire canvas every frame.
@@ -221,11 +256,6 @@ function run2() {
 
       var t = now();
       interval = getInterval();
-
-      const t0 = times[0].t0;
-      const t1 = times[0].t1;
-      const m0 = times[0].m0;
-      const m1 = times[0].m1;
 
       var m;
       if (t0 == t1) m = m0;
@@ -269,5 +299,6 @@ const tester = function() {
 };
 
 if (debug && (typeof global === 'object')) tester();
-
-
+else {
+  solarSystem.start();
+}
