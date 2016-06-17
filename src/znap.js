@@ -11,6 +11,7 @@ const currentAC = new AnimationContext();
 
 
 function zoom(rate) {
+  console.log('==================================== zoom(' + rate + ')');
   // FIXME: this is all a hack right now
   Znap.zoomRate = rate;
   const nextAC = Znap.currentAC.scaleU(rate);
@@ -26,12 +27,13 @@ function getCoords(time, x, y) {
   //const factor = Math.pow(Znap.zoomRate, absTime);
   //const newX = factor * x;
   //const newY = factor * y;
+  console.log('~~~~~~~~~~~~~~~~~~~~~~~~ time: ', t);
   factor = factor * 2;
   return new List([x * factor, y * factor]);
 }
 
 function push(nextAC) {
-  console.log('FIXME');
+  console.log('======================== FIXME');
 }
 
 function addTime(t) {
