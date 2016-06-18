@@ -23,7 +23,10 @@ function zoom(rate) {
   //return nextAC;
 };
 
-// Get the given x, y position at time deltaT from now.
+// Takes a set of canvas coordinates in, and a relative time
+// in seconds. Returns the position of where this point will be at
+// that time, according to the active animation context. The returned
+// value is also in canvas coordinates.
 function getCoords(deltaT, x, y) {
 
   // FIXME: temporary hacks
@@ -41,7 +44,7 @@ function getCoords(deltaT, x, y) {
 }
 
 function push(nextAC) {
-  console.log('======================== FIXME');
+  //console.log('======================== FIXME');
 }
 
 function addTime(t) {

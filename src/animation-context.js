@@ -43,28 +43,29 @@ class AnimationContext {
         isRoot ? 0 
       : prev.time + this.relTime;
 
-    const isStop = this.isStop = 
-        isRoot ? true 
-      : (_relTimeArg != null);
+    //const isStop = this.isStop = 
+    //    isRoot ? true 
+    //  : (_relTimeArg != null);
 
-    this.prevStop = 
-        isRoot ? null 
-      : prev.isStop ? prev 
-      : prev.prevStop;
+    //this.prevStop = 
+    //    isRoot ? null 
+    //  : prev.isStop ? prev 
+    //  : prev.prevStop;
 
     const matrix = this.matrix = 
         isRoot ? new Matrix() 
       : _matrix;
 
-    // The transformation matrix since (but not including) the last stop
-    this.stopProduct = 
-        (isRoot || prev.isStop) ? matrix 
-      : prev.stopProduct.clone().multiply(matrix);
+    //// The transformation matrix since (but not including) the last stop
+    //this.stopProduct = 
+    //    (isRoot || prev.isStop) ? matrix 
+    //  : prev.stopProduct.clone().multiply(matrix);
 
     // The cumulative transform
     this.product = 
         isRoot ? matrix 
-      : this.prevStop.product.clone().multiply(this.stopProduct);
+      //: this.prevStop.product.clone().multiply(this.stopProduct);
+      : this.prev.product.clone().multiply(matrix);
   }
 
 
@@ -137,10 +138,8 @@ class AnimationContext {
       const t0 = gc0.time;
       const t1 = gc1.time;
       const rt = (t - t0) / (t1 - t0);
-      console.log('t0: ' + t0 + ', t1: ' + t1 + ', rt: ' + rt);
       m = gc0.matrix.interpolate(gc1.matrix, rt);
     }
-    console.log('final matrix: ', m);
     const result = m.applyToPoint(p0.x, p0.y);
     const p1 = new Point(result);
     return p1;
@@ -152,7 +151,9 @@ class AnimationContext {
   // possible. If `this` is root, then it's not possible, so we'd return 
   // [this, this].
   _lastPair() {
-    return [ (this.isRoot ? this: this.prevStop), this ];
+    const ret = [ (this.isRoot ? this: this.prev), this ];
+    //console.log('_lastPair: returning ', ret);
+    return ret;
   }
 
   // Returns the chain of graphical contexts as an array
@@ -227,7 +228,7 @@ const prevPair = pair => {
   const ret =
       gc0.isRoot && gc1.isRoot ? null   // nowhere to go
     : gc0.isRoot ? [gc0, gc0]
-    : [gc0.prevStop, gc0];
+    : [gc0.prev, gc0];
   return ret;
 };
 

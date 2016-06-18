@@ -66,3 +66,12 @@ glideTo(vspeed, vlength, vdirection) {
   return new List([ret.x, ret.y, ret.dt]);
 };
 ```
+
+## square-spiral-v2
+
+Completely contained in the repo at this tag. To run it:
+
+* Clone the repo with `--recursive`, 
+* `./run-server.sh`
+* Go to http://localhost:8756/snap.html
+* Import project/znap.xml

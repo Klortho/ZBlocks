@@ -1,5 +1,15 @@
 'use strict';
 
+// select which demo, rectangles or solarSystem.
+var demo = 'rectangles'; 
+
+// Global variables:
+//
+// stage - current instance of Stage
+// - pause()
+
+
+
 // Fix the modulo operator (see
 // http://stackoverflow.com/questions/4467539/javascript-modulo-not-behaving)
 Number.prototype.mod = function(n) {
@@ -29,6 +39,35 @@ function wrapDraw(ctx, draw) {
 class Stops {
 
   constructor() {
+
+    const stops = this.stops = [
+      // identity
+      { duration: 1,
+        matrix: (new Matrix()),
+      },
+      // t = 1
+      { duration: 7,
+        matrix: (new Matrix()).scaleU(2),
+      },
+      // t = 8
+      { duration: 1,
+        matrix: (new Matrix()).scaleU(2).rotateDeg(135),
+      },
+      // t = 9
+      { duration: 1,
+        matrix: (new Matrix()).scaleU(2).rotateDeg(180),
+      },
+      // t = 10
+      { duration: 3,
+        matrix: (new Matrix()).scaleU(2).rotateDeg(225),
+      },
+      // t = 13
+      { duration: 0.1,
+        matrix: (new Matrix()).scaleU(2).rotateDeg(225).shearX(2),
+      },
+    ];
+
+  /*
     const stops = this.stops = [
       // identity
       { duration: 2,
@@ -51,6 +90,7 @@ class Stops {
         matrix: (new Matrix()).scale(0.5, 0.5),
       },
     ];
+  */
 
     const first = this.first = stops[0];
     const last = this.last = stops[stops.length - 1];
@@ -132,6 +172,7 @@ class Stage {
   constructor(props) {
     // defaults here:
     this.speed = 1;
+    this._paused = false;
 
     // Mix in the options (overrides) and methods passed to us
     if (typeof props === 'object' && props) {
@@ -151,8 +192,14 @@ class Stage {
     // `animate` gets passed to the window.requestAnimationFrame function.
     // It draws one frame, and then loops. It is kicked off by start()
     this.animate = () => {
+      if (!this._paused)
+        this._accTime += (now() - this._lastTime) * this.speed;
+      this._lastTime = now();
+      const t = this._accTime;
+      const displayTime = Math.floor(this._accTime * 10) / 10;
+      document.querySelector('#t').innerHTML = displayTime;
+
       this.initFrame(ctx);
-      const t = (now() - this.startTime) * this.speed;
       this.draw(ctx, t);
       window.requestAnimationFrame(this.animate);
     };
@@ -164,8 +211,28 @@ class Stage {
   initialize(ctx) {}
 
   start() {
-    this.startTime = now();
+    // Keep time with an accumulator, rather than (now - start), so that
+    // we can speed up or slow down dynamically.
+    this._accTime = 0;
+    this._lastTime = now();
+
     window.requestAnimationFrame(this.animate);
+  }
+
+  pause() {
+    if (this._paused) {
+      console.warn('already paused');
+      return;
+    }
+    this._paused = true;
+  }
+
+  continue() {
+    if (!this._paused) {
+      console.warn('not paused');
+      return;
+    }
+    this._paused = false;
   }
 
   initFrame(ctx) {
@@ -178,6 +245,7 @@ class Stage {
     drawFunc.call(this, ...args);
     this.ctx.restore();
   }
+
 }
 
 //----------------------------------------------------------------------
@@ -261,9 +329,9 @@ Color.random = function() {
 };
 
 //----------------------------------------------------------------------
-// Rectangle with transformations
+// Rectangles with transformations
 
-const rectangle = function() {
+const rectangles = function() {
 
   function applyMatrix(ctx, m) {
     ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
@@ -295,6 +363,14 @@ const rectangle = function() {
       const ctx = this.ctx;
       ctx.fillStyle = color.toString();
       ctx.fillRect(-50, -30, 100, 60);
+    },
+
+    // Add a dot on the display
+    dot: function(x, y) {
+      const stage = this;
+      if (!('dots' in stage)) stage.dots = [];
+      stage.dots.push({x: x, y: y});
+      return stage.dots.length;
     },
 
     draw: function(ctx, t) {
@@ -330,6 +406,15 @@ const rectangle = function() {
           const m = prev.matrix.interpolate(next.matrix, normTime);
           applyMatrix(ctx, m);
           this.transBox(prev.box.color, next.box.color, normTime);
+
+          if (this.dots) {
+            this.dots.forEach(dot => {
+              ctx.beginPath();
+              ctx.lineWidth = 5;
+              ctx.arc(dot.x, dot.y, 1, 0, 2 * Math.PI, false);
+              ctx.stroke();
+            });
+          }
         });
       });
     },
@@ -368,50 +453,14 @@ const tester = function() {
 
 if (typeof global === 'object') tester();
 else {
-  //solarSystem().start();
-  rectangle().start();
-}
-
-
-//------------------------------------------------------------------------
-/* This is not being used. Not sure if it's valuable or not.
-
-// All changes to the canvax context will go through an instance of this
-// class. This doesn't save a stack; it just keeps the current transformation,
-// and it is mutable.
-class CanvasTransformManager {
-  constructor(_ctx) {
-    this.ctx = _ctx;
-    this.reset();
-  }
-
-  // Root matrix, can't be overridden
-  get root() {
-    if (!this.hasOwnProperty('root')) {
-      this._root = (new Matrix()).translate(width/2, height/2);
-    }
-    return this._root;
-  }
-
-  get current() {
-    return this._current;
-  }
-
-  // Set the canvax ctx object back to the root transformation
-  reset() {
-    this.set(this.root);
-  }
-
-  // Set the current transformation matrix. This applies it to the canvas.
-  set(m) {
-    this._current = m;
-    m.applyToContext(ctx);
-  }
-
-  // Set the transformation matrix to the product of the current one and a
-  // new one.
-  multiply(m) {
-    this.set(this._current.multiply(m));
+  // instantiate the demo
+  var _stageBuilder = (demo === 'rectangles' ? rectangles
+    : demo === 'solarSystem' ? solarSystem 
+    : null);
+  if (_stageBuilder == null) console.error('Not sure about ' + demo);
+  else {
+    var stage = _stageBuilder();
+    stage.start();
   }
 }
-*/
+
