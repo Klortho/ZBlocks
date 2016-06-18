@@ -29,6 +29,17 @@ const degToRad = deg => deg * Math.PI / 180;
 const radToDeg = rad => rad * 180 / Math.PI;
 
 
+// Time
+
+// Get the current time, in seconds, with a fractional part that includes
+// millis
+const now = function() {
+  var d = new Date();
+  return d.getTime() / 1000;
+};
+
+
+
 module.exports = {
   assign,
   degToRad,
@@ -38,6 +49,7 @@ module.exports = {
   isNumber,
   isObject,
   isNullOrNumber,
+  now,
   radToDeg,
   sq,
 };

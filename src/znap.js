@@ -5,31 +5,39 @@ const AnimationContext = require('./animation-context.js');
 const Point = require('./point.js');
 const Vector = require('./vector.js');
 const utils = require('./utils.js');
-
+const now = utils.now;
 
 const currentAC = new AnimationContext();
 
 
 function zoom(rate) {
-  console.log('==================================== zoom(' + rate + ')');
-  // FIXME: this is all a hack right now
+
+  // FIXME: zoomRate and startTime are hacks right now
   Znap.zoomRate = rate;
-  const nextAC = Znap.currentAC.scaleU(rate);
-  Znap.currentTime = 0;
-  Znap.push(nextAC);
-  return nextAC;
+  Znap.startTime = now();
+
+  console.log(`Starting zoom rate ${rate} at time ${Znap.startTime}`);
+
+  //const nextAC = Znap.currentAC.scaleU(rate);
+  //Znap.push(nextAC);
+  //return nextAC;
 };
 
-var factor = 1;
+// Get the given x, y position at time deltaT from now.
+function getCoords(deltaT, x, y) {
 
-function getCoords(time, x, y) {
-  //const absTime = Znap.currentTime + time;
-  //const factor = Math.pow(Znap.zoomRate, absTime);
-  //const newX = factor * x;
-  //const newY = factor * y;
-  console.log('~~~~~~~~~~~~~~~~~~~~~~~~ time: ', t);
-  factor = factor * 2;
-  return new List([x * factor, y * factor]);
+  // FIXME: temporary hacks
+
+  const relTime = now() - Znap.startTime;
+  const t = relTime + deltaT;
+
+  if (!('zoomRate' in Znap) || typeof Znap.zoomRate !== 'number') 
+    Znap.zoomRate = 1;
+  const factor = Math.pow(Znap.zoomRate, t);
+  const x1 = x * factor;
+  const y1 = y * factor;
+
+  return new List([x1, y1]);
 }
 
 function push(nextAC) {
@@ -37,20 +45,20 @@ function push(nextAC) {
 }
 
 function addTime(t) {
-  Znap.currentTime += t;
+  Znap.startTime += t;
 }
 
 const Znap = module.exports = {
+  addTime,
   AnimationContext,
-  Vector,
   Point,
-  utils,
 
   currentAC,
   getCoords,
   push,
+  utils,
+  Vector,
   zoom,
-  addTime,
 };
 
 
