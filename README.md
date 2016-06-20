@@ -44,8 +44,8 @@ instance in the list including:
 * `prev` - A reference to the previous AC. We guarantee that 
   `(prev == null) || (prev.time <= this.time)`. 
 
-By default (always?) the "root" matrix corresponds to the start time (when
-the AC was activated), is the identity matrix, and has `root.prev == null`.
+By default (always?) the "root" matrix corresponds to `time == 0`, is the 
+identity matrix, and has `root.prev == null`.
 
 
 The values of the nodes of the list, comprising a specific time and matrix,

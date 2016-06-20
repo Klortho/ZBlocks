@@ -3,13 +3,13 @@
 // each of which has an associated time, and
 // where each matrix specifies a affine coordinate transformation. 
 // Any given AnimationContext has a single matrix describing what it brings
-// to the party, a reference to its predecessor, and a product matrix, that
-// gives the product of all of the transformations so far.
+// to the party, and a reference to its predecessor.
 'use strict';
 
 const Matrix = require("transformation-matrix-js").Matrix;
 const Point = require('./point.js');
 const utils = require('./utils.js');
+
 
 
 // FIXME: temporary
@@ -19,108 +19,105 @@ const assert = pred => {
 
 class AnimationContext {
 
-  // Constructor. If _previous is null or absent, then this is the root, and 
-  // none of the following arguments will be used.
-  // If _relativeTime is null, then this is a "stop".
-  constructor(_opts, _prev, _relTimeArg, _matrix) {
-    this.opts = utils.extend(AnimationContext.defaults, _opts);
+  // Constructor. All parameters are named:
+  // - prev: The previous AC in the chain. If prev is null or absent, then 
+  //   this is the root
+  // - t: Relative time since the last AC in the chain; used to compute the 
+  //   `time` property (which is absolute). If prev was given as null, t is
+  //   not zero, then a new identity root AC will be created first, and this
+  //   chained off of that. So, in other words, this:
+  //     var ac = new AC({t: 5, scaleU: [2]})
+  //   is shorthand for this:
+  //     var ac = (new AC()).scaleU({t: 5}, [2]);
+  //   If t is 0, then this AC replaces the prev in the chain.
+  // - isLoop - creates a special AC that causes a chain to loop back to the
+  //   root
+  // - extendBy: "overwrite" - new matrix is used as-is; "multiply" - new matrix
+  //   is multiplied by the prev. Default is "multiply"
+  //
+  // Also including any of a number of ways to specify the matrix. If none of
+  // these are given, it defaults to the identity matrix. See 
+  // matrixMethods, below.
 
-    const prev = this.prev = _prev || null;
-    const isRoot = this.isRoot = (_prev == null);
+  constructor(_opts) {
+    const opts = this.opts = utils.extend(defaults, _opts);
+
+    if (this.isLoop && this.isRoot)
+      throw RangeError('root can\'t loop to itself');
+
+    if (!this.isLoop) {
+      // Get the matrix argument to this constructor, which could
+      // be specified in a number of ways
+      const matrixArg = getMatrix(opts);
+
+      // Compute the real matrix for this stop, by multiplying or overwriting
+      // prev.matrix
+      this.matrix = 
+          (this.isRoot || this.extendBy === 'overwrite') ? matrixArg
+        : this.prev.matrix.clone().multiply(matrixArg);
+    }
+    else {
+      this.matrix = null;
+    }
+
+    // If t is non-zero, and this is root, then insert a new root identity
+    // matrix, and chain off that
+    if (this.isRoot && this.t !== 0) {
+      const root = new AnimationContext();
+      this.opts.prev = root;
+    }
+
+    // If t is 0, and this is not the root, then this AC will replace
+    // prev, rather than add to the chain
+    if (!this.isRoot && this.t === 0) this.prev = this.prev.prev;
 
     // For diagnostics, give each one an the index number of where it appears
     // in the chain
-    this.i = isRoot ? 0 : this.prev.i + 1;
-    
-    // relTime, the member, is always a number
-    const relTime = this.relTime = 
-        isRoot ? 0 
-      : (_relTimeArg || 0);
-    if ((typeof relTime !== 'number') || relTime < 0) 
-      throw RangeError('Bad argument for relative time');
+    this.i = this.isRoot ? 0 : this.prev.i + 1;
+  }
 
-    this.time = 
-        isRoot ? 0 
-      : prev.time + this.relTime;
+  get prev() {
+    return this.opts.prev;
+  }
 
-    //const isStop = this.isStop = 
-    //    isRoot ? true 
-    //  : (_relTimeArg != null);
+  get isRoot() {
+    return this.prev == null;
+  }
 
-    //this.prevStop = 
-    //    isRoot ? null 
-    //  : prev.isStop ? prev 
-    //  : prev.prevStop;
+  get isLoop() {
+    return this.opts.isLoop;
+  }
 
-    const matrix = this.matrix = 
-        isRoot ? new Matrix() 
-      : _matrix;
+  // Relative time (since prev)
+  get t() {
+    return this.opts.t;    
+  }
 
-    //// The transformation matrix since (but not including) the last stop
-    //this.stopProduct = 
-    //    (isRoot || prev.isStop) ? matrix 
-    //  : prev.stopProduct.clone().multiply(matrix);
+  // Absolute time (since root)
+  get time() {
+    return this.isRoot ? 0 : this.prev.time + this.t;
+  }
 
-    // The cumulative transform
-    this.product = 
-        isRoot ? matrix 
-      //: this.prevStop.product.clone().multiply(this.stopProduct);
-      : this.prev.product.clone().multiply(matrix);
+  // loop() is a factory method that returns a new Animation Context that loops
+  // back to the root, t seconds after the last one in the chain. The new AC
+  // is special, in that it acts a little bit like a proxy for the root AC. It
+  // doesn't have it's own matrix, but does have a time property.
+  loop(t) {
+    return new AnimationContext({isLoop: true}, this, t, m);
   }
 
 
-  // The following factory methods return a new AnimationContext object that 
-  // describes a new transformation derived from this one. 
-  // Almost all of these methods delegate to methods defined in 
-  // the Matrix object. See 
-  // https://github.com/epistemex/transformation-matrix-js
-
-  // Some of these delegate to Matrix class methods, that create new Matrix 
-  // objects, while others to methods that mutate the Matrix objects. In the 
-  // latter case, we call clone() first.
-
-  // The `t` parameter is either null or a relative time in seconds. When 
-  // non-null, it sets a "stop", such that the effective transform at any time
-  // before t is the iterpolation of all of the transforms since the last stop.
-  // For example:
-  //     *root*  <-  scale(null, 2)  <-  translate(2, 3, 0)
-  // sets one new stop at 2 seconds. The transform at any time between 0-2 is
-  // the interpolation of the combined scale and translate transforms.
-
-  // The most general transform:
-  fromParams(t, scaleX, scaleY, translateX, translateY, shearX, shearY) {
-    const m = Matrix.from(scaleX, shearY, shearX, scaleY, translateX, translateY);
-    return new AnimationContext(null, this, t, m);
-  }
-
-  // From a Matrix object
-  fromMatrix(t, m) {
-    return new AnimationContext(null, this, t, m);
-  }
-
-  // Matrix needed to produce triangle2 from triangle1
-  fromTriangles(t, triangle1, triangle2) {
-    const m = Matrix.fromTriangles(triangle1, triangle1);
-    return new AnimationContext(null, this, t, m);
-  }
-
-  // Matrix from a SVG transform list
-  fromSVGTransformList(t, tList) {
-    const m = Matrix.fromSVGTransformList(tList);
-    return new AnimationContext(null, this, t, m);
-  }
 
 
   // This takes a point in the local coordinates, and returns the corresponding
-  // point in absolute, using the final product matrix. This doesn't do anything
+  // point in absolute, by applying the matrix. This doesn't do anything
   // with time.
   applyToPoint(p0) {
-    const m = this.product;
+    const m = this.matrix;
     var result = m.applyToPoint(p0.x, p0.y);
     const p1 = new Point(result);
     return p1;
   }
-
 
   // This interpolates the transformation according to the time.
   applyToEvent(p0, t) {
@@ -157,6 +154,8 @@ class AnimationContext {
   }
 
   // Returns the chain of graphical contexts as an array
+  // FIXME: make sure this works with isLoop
+  // FIXME: let's call these "stops".
   graphicalContexts() {
     const ret = [];
     for (var gc = this; gc != null; gc = gc.prev) {
@@ -166,17 +165,25 @@ class AnimationContext {
   }
 
   toString() {
-    return 'AnimationContext #' + this.i;
+    return 'AnimationContext #' + this.i + ': ' +
+      `t=${this.t}; matrix: ${this.matrix.toString()}`;
   }
 }
 
-// Object methods that delegate to a Matrix method, to create a new 
-// AnimationContext:
+const defaults = AnimationContext.defaults = {
+  prev:  null,
+  t: 0,
+  isLoop: false,
+  extendBy: 'multiply',
+};
 
-const transformMethods = [
-  'flipX',
-  'flipY',
-  'reflectVector',
+// Methods for specifying a new matrix.
+// See https://github.com/epistemex/transformation-matrix-js
+const matrixMethods = AnimationContext.matrixMethods = [
+  'from',               // Matrix.from(a, b, c, d, e, f)
+  'flipX',              // ()
+  'flipY',              // ()
+  'reflectVector',      // (x, y)
   'rotate',             // (angle)
   'rotateDeg',          // (angle)
   'rotateFromVector',   // (x, y)
@@ -187,26 +194,35 @@ const transformMethods = [
   'shear',              // (sx, sy)
   'shearX',             // (sx)
   'shearY',             // (sy)
-  'skew',
-  'skewDeg',
-  'skewX',
-  'skewY',
-  'translate',
-  'translateX',
-  'translateY',
+  'skew',               // (ax, ay)
+  'skewDeg',            // (ax, ay)
+  'skewX',              // (ax)
+  'skewY',              // (ay)
+  'translate',          // (tx, ty)
+  'translateX',         // (tx)
+  'translateY',         // (ty)
 ];
 
-transformMethods.forEach(methodName => {
-  AnimationContext.prototype[methodName] = function(...args) {
-    const t = args.shift();
-    const m = (new Matrix())[methodName](...args);
-    return new AnimationContext(null, this, t, m);
+// This function is used by the contructor to instantiate the Matrix object
+// from the specification in opts, which can either be `matrix`, or one of
+// the methods above.
+const getMatrix = AnimationContext.getMatrix = function(opts) {
+  const method = matrixMethods.find(_method => _method in opts) || null;
+  const matrix = 
+      method == null ? new Matrix()   // default is identity
+    : method == 'from' ? Matrix.from(...opts.from)
+    : (new Matrix())[method](...opts[method]);
+  return matrix;
+}
+
+matrixMethods.forEach(method => {
+  AnimationContext.prototype[method] = function(...args) {
+    const opts = args.shift();
+    opts[method] = args;
+    opts.prev = this;
+    return new AnimationContext(opts);
   };
 });
-
-AnimationContext.defaults = {};
-
-
 
 // Function to return the matching prev/next pair of graphical contexts to use
 // for an interpolation, by stepping backwards through the linked list. There 
@@ -249,4 +265,6 @@ const matchingPair = AnimationContext.matchingPair = function(pair, t) {
 };
 
 
+// Attach this, for convenience
+AnimationContext.Matrix = Matrix;
 module.exports = AnimationContext;

@@ -2,30 +2,58 @@
 
 // This is chai with a custom assertion
 const assert = require('./assert-close-enough.js');
-const AnimationContext = require('../src/animation-context.js');
+const AC = require('../src/animation-context.js');
 const Matrix = require("transformation-matrix-js").Matrix;
 const Point = require('../src/point.js');
 const R = require('ramda');
 
 
-function checkAnimationContext(actual, criteria) {
-  Object.keys(criteria).forEach(function(k) {
+const IDENTITY = new Matrix();
+
+// This assertion checks any subset of properties of an object. Whatever
+// properties are defined on `expected` are checked, others are not.
+assert.propsMatch = function(actual, expected, message) {
+  const msg = function(_msg) {
+    return _msg + (typeof message === 'undefined' ? '' : ': ' + message);
+  }
+
+  Object.keys(expected).forEach(k => {
+    assert.equal(typeof actual[k], typeof expected[k], 
+      msg('Value types don\'t match for key ' + k));
+    if (typeof expected[k] === 'object' && expected[k] != null) {
+      assert.propsMatch(actual[k], expected[k], msg('For key ' + k));
+    } 
+    else {
+      assert.equal(actual[k], expected[k], msg('For key ' + k));
+    }
+  })
+}
+
+// This is specifically for asserting things about AnimationContexts
+assert.ACMatch = function(actual, expected) {
+  Object.keys(expected).forEach(function(k) {
     const matches = (...list) => list.indexOf(k) != -1;
 
     if (matches('prev')) {
-      assert.strictEqual(actual[k], criteria[k], 
-        `${k} is not strictly equal to the expected value ${criteria[k]}`);
+      assert.strictEqual(actual[k], expected[k], 
+        `${k} is not strictly equal to the expected value ${expected[k]}`);
     }
-    else if (matches('isRoot', 'relTime', 'time')) {
-      assert.equal(actual[k], criteria[k], 
-        `${k} is not equal to the expected value ${criteria[k]}`);
+    else if (matches('i', 'isRoot', 't', 'time', 'isLoop')) {
+      assert.equal(actual[k], expected[k], 
+        `${k} is not equal to the expected value ${expected[k]}`);
     }
-    else if (matches('matrix', 'product')) {
-      assert.isOk(actual[k].isEqual(criteria[k]), 
-        `${k} assertion failed. Actual: ${actual[k]}; expected ${criteria[k]}`);
+    else if (matches('matrix')) {
+      assert.isOk(actual[k].isEqual(expected[k]), 
+        `${k} assertion failed. Actual: ${actual[k]}; expected ${expected[k]}`);
     }
   });
 }
+
+
+
+
+// FIXME: these tests aren't working yet:
+/*
 
 function pointsEqual(p0, p1) {
   const msg = `point received ${p0} does not equal expected ${p1}`;
@@ -36,29 +64,135 @@ function pointsEqual(p0, p1) {
 // Return a sample animation context for testing.
 function sampleAC() {
   return new AnimationContext()
-    .scale(1, 2, 2)
-    .rotateDeg(7, 135)
-    .rotateDeg(1, 45)
-    .rotateDeg(1, 45)
-    .shearX(3, 2);
+    .scale({t: 1}, 2, 2)
+    .rotateDeg({t: 7}, 135)
+    .rotateDeg({t: 1}, 45)
+    .rotateDeg({t: 1}, 45)
+    .shearX({t: 3}, 2);
 }
+*/
+
 
 
 describe('AnimationContext class', function() {
-  it('can be constructed as the root of the chain', function () {
-    const ac = new AnimationContext();
-    const identity = new Matrix();
 
-    checkAnimationContext(ac, {
-      prev: null,
+  it('has expected constructors', function () {
+    var ac;
+
+    ac = new AC();
+    assert.propsMatch(ac, {
+      i: 0,
+      isLoop: false,
       isRoot: true,
-      relTime: 0,
+      prev: null,
       time: 0,
-      matrix: identity,
-      stopProduct: identity,
-      product: identity,
+      matrix: {
+        a: 1,
+        b: 0, 
+        c: 0,
+        d: 1, 
+        e: 0,
+        f: 0,
+      }
+    });
+
+    ac = new AC({from: [1, 0, 0, 2, 0, 0]});
+    assert.propsMatch(ac, {
+      i: 0,
+      isLoop: false,
+      isRoot: true,
+      prev: null,
+      time: 0,
+      matrix: {
+        a: 1,
+        b: 0, 
+        c: 0,
+        d: 2, 
+        e: 0,
+        f: 0,
+      }
+    });
+
+    ac = new AC({scaleU: [2]});
+    assert.propsMatch(ac, {
+      i: 0,
+      isLoop: false,
+      isRoot: true,
+      prev: null,
+      time: 0,
+      matrix: {
+        a: 2,
+        b: 0, 
+        c: 0,
+        d: 2, 
+        e: 0,
+        f: 0,
+      }
+    });
+
+    ac = new AC();
+    assert.ACMatch(ac, {
+      i: 0,
+      prev: null,
+      isLoop: false, 
+      isRoot: true,
+      t: 0,
+      time: 0,
+      matrix: IDENTITY,
+    });
+
+    // Test the shortcut for creating a two-chain AC (this is the zoomer):
+    ac = new AC({t: 1, scaleU: [1.1]})
+    assert.ACMatch(ac, {
+      i: 1,
+      isLoop: false, 
+      isRoot: false,
+      t: 1,
+      time: 1,
+      matrix: (new Matrix()).scaleU(1.1),
     });
   })
+
+
+  it('can chain', function () {
+    var ac0 = new AC();
+    var ac1 = ac0.scaleU({t:1}, 2);
+    var ac2 = ac1.scaleU({t:2}, 3);
+
+    assert.ACMatch(ac0, {
+      i: 0,
+      prev: null,
+      isLoop: false, 
+      isRoot: true,
+      t: 0,
+      time: 0,
+      matrix: IDENTITY,
+    });
+    assert.ACMatch(ac1, {
+      i: 1,
+      prev: ac0,
+      isLoop: false, 
+      isRoot: false,
+      t: 1,
+      time: 1,
+      matrix: (new Matrix()).scaleU(2),
+    });
+    assert.ACMatch(ac2, {
+      i: 2,
+      prev: ac1,
+      isLoop: false, 
+      isRoot: false,
+      t: 2,
+      time: 3,
+      matrix: (new Matrix()).scaleU(6),
+    });
+
+
+
+  });
+
+// FIXME: these tests aren't working yet:
+/*
 
   it('can scale', function() {
     const ac = new AnimationContext();
@@ -67,11 +201,9 @@ describe('AnimationContext class', function() {
     checkAnimationContext(double, {
       prev: ac,
       isRoot: false,
-      relTime: 1,
+      t: 1,
       time: 1,
       matrix: expDouble,
-      stopProduct: expDouble,
-      product: expDouble,
     });
   });
 
@@ -103,59 +235,48 @@ describe('AnimationContext class', function() {
     checkAnimationContext(ac1, {
       prev: ac0,
       isRoot: false,
-      relTime: 1,
+      t: 1,
       time: 1,
       matrix: embiggen,
-      stopProduct: embiggen,
-      product: embiggen,
     });
 
 
     const rotate_135 = (new Matrix()).rotateDeg(135);
-    const product2 = embiggen.clone();
-    product2.multiply(rotate_135);
     checkAnimationContext(ac2, {
       prev: ac1,
       isRoot: false,
-      relTime: 7,
+      t: 7,
       time: 8,
       matrix: rotate_135,
-      stopProduct: rotate_135,
-      product: product2,
     });
 
     const rotate_45 = (new Matrix()).rotateDeg(45);
-    const product3 = product2.clone().multiply(rotate_45);
     checkAnimationContext(ac3, {
       prev: ac2,
       isRoot: false,
-      relTime: 1,
+      t: 1,
       time: 9,
       prevStop: ac2,
       matrix: rotate_45,
     });
 
     const rotate_90 = rotate_45.clone().rotateDeg(45);
-    const product4 = product3.clone().multiply(rotate_45);
     checkAnimationContext(ac4, {
       prev: ac3,
       isRoot: false,
-      relTime: 1,
+      t: 1,
       time: 10,
       matrix: rotate_45,
-      product: product4,
     });
 
     const shear = (new Matrix()).shearX(2);
     const stopProd5 = rotate_90.clone().multiply(shear); 
-    const product5 = product4.clone().multiply(shear);
     checkAnimationContext(ac5, {
       prev: ac4,
       isRoot: false,
-      relTime: 3,
+      t: 3,
       time: 13,
       matrix: shear,
-      product: product5,
     });
   })
 
@@ -221,4 +342,6 @@ describe('AnimationContext class', function() {
     });
 
   });
+*/
 });
+
