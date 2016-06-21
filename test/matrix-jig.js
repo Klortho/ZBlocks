@@ -67,31 +67,6 @@ class Stops {
       },
     ];
 
-  /*
-    const stops = this.stops = [
-      // identity
-      { duration: 2,
-        matrix: (new Matrix()),
-      },
-      // double scale
-      { duration: 1,
-        matrix: (new Matrix()).scale(2, 2),
-      },
-      // rotate
-      { duration: 5,
-        matrix: (new Matrix()).rotateDeg(90),
-      },
-      // shear
-      { duration: 1,
-        matrix: (new Matrix()).shearX(2),
-      },
-      // back down in scale
-      { duration: 2,
-        matrix: (new Matrix()).scale(0.5, 0.5),
-      },
-    ];
-  */
-
     const first = this.first = stops[0];
     const last = this.last = stops[stops.length - 1];
 
@@ -159,136 +134,6 @@ class Stops {
   }
 }
 
-//----------------------------------------------------------------------
-// Stage is an animation driver. Different scences/animations should be
-// instances of this, not subclasses.
-// Usage:
-//   my solarSystem = new Stage({
-//     initialize: function() { this.sun = ...; },
-//     draw: function(ctx) { ... },
-//   });
-
-class Stage {
-  constructor(props) {
-    // defaults here:
-    this.speed = 1;
-    this._paused = false;
-
-    // Mix in the options (overrides) and methods passed to us
-    if (typeof props === 'object' && props) {
-      Object.keys(props).forEach(key => {
-        const prop = props[key];
-        this[key] = typeof prop === 'function' ? prop.bind(this) : prop;
-      });
-    }
-
-    // Get the canvas and the context object
-    const canvas = this.canvas = document.getElementById('canvas');
-    const width = this.width = canvas.width;
-    const height = this.height = canvas.height;
-    const ctx = this.ctx = canvas.getContext('2d');
-    ctx.globalCompositeOperation = 'destination-over';
-
-    // `animate` gets passed to the window.requestAnimationFrame function.
-    // It draws one frame, and then loops. It is kicked off by start()
-    this.animate = () => {
-      if (!this._paused)
-        this._accTime += (now() - this._lastTime) * this.speed;
-      this._lastTime = now();
-      const t = this._accTime;
-      const displayTime = Math.floor(this._accTime * 10) / 10;
-      document.querySelector('#t').innerHTML = displayTime;
-
-      this.initFrame(ctx);
-      this.draw(ctx, t);
-      window.requestAnimationFrame(this.animate);
-    };
-
-    this.initialize(ctx);
-  }
-
-  // default initialize method
-  initialize(ctx) {}
-
-  start() {
-    // Keep time with an accumulator, rather than (now - start), so that
-    // we can speed up or slow down dynamically.
-    this._accTime = 0;
-    this._lastTime = now();
-
-    window.requestAnimationFrame(this.animate);
-  }
-
-  pause() {
-    if (this._paused) {
-      console.warn('already paused');
-      return;
-    }
-    this._paused = true;
-  }
-
-  continue() {
-    if (!this._paused) {
-      console.warn('not paused');
-      return;
-    }
-    this._paused = false;
-  }
-
-  initFrame(ctx) {
-    ctx.clearRect(0, 0, this.width, this.height);
-  }
-
-  // Executes a drawing function inside ctx.save and .restore
-  scene(drawFunc, ...args) {
-    this.ctx.save();
-    drawFunc.call(this, ...args);
-    this.ctx.restore();
-  }
-
-}
-
-//----------------------------------------------------------------------
-// Solar system example (adapted from Mozilla's tutorial)
-
-const solarSystem = function() {
-  return new Stage({
-    initialize: function(ctx) {
-      this.sun = new Image();
-      this.sun.src = 'https://mdn.mozillademos.org/files/1456/Canvas_sun.png';
-      this.earth = new Image();
-      this.earth.src = 'https://mdn.mozillademos.org/files/1429/Canvas_earth.png';    
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-      ctx.strokeStyle = 'rgba(0, 153, 255, 0.4)';
-    },
-
-    draw: function(ctx, t) {
-      const stage = this;
-
-      ctx.save();
-        ctx.translate(150, 150);
-
-        // here's how to apply a transform from a Matrix object
-        const m = new Matrix().scale(0.5, 0.5);
-        //m.applyToContext(ctx);    // this overrides completely
-        // but this multiplies:
-        ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
-
-        // Earth
-        ctx.rotate(2 * Math.PI * t / 60);
-        ctx.translate(105, 0);
-        ctx.fillRect(0, -12, 50, 24); // Shadow
-        ctx.drawImage(stage.earth, -12, -12);
-      ctx.restore();
-      
-      ctx.beginPath();
-      ctx.arc(150, 150, 105, 0, 2 * Math.PI, false); // Earth orbit
-      ctx.stroke();
-     
-      ctx.drawImage(stage.sun, 0, 0, 300, 300);
-    },
-  });
-}
 
 //------------------------------------------------------------------------
 // Color class
@@ -428,7 +273,7 @@ const tester = function() {
   global.Matrix = require("transformation-matrix-js").Matrix;
   const stops = new Stops();
 
-  const assert = require('./assert-close-enough.js');
+  const assert = require('./assertions.js');
   /* Commenting these all out, since I changed the set of stops since I wrote
     these.
     assert.equal(stops.getStop(0).num, 0);

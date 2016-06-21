@@ -1,62 +1,44 @@
 # Next
 
-* Keep tests working
-* Changes to AC:
-    * (/)Get rid of `product`. There is no need for it. It's all `matrix`.
-    * (/)Does the root *have* to be the identity matrix?
-    * (/)Implement circularity - got an isLoop() flag in
-    * (x)The way matrix-jig works now: time as recorded by the AC doesn't have 
-      to really be wall-clock time. Allow for pause/continue, etc. That's not
-      part of the AC class.
+## npm tests
 
-New features and tests:
+**Get tests working again:**
 
-* Change the test cases to make them simple to change by eyeball.
+* ✓utils.js
+* Xassertions.js - not going to test this independently
+* ✓point.js
+* space.js - test `fromStops`
+* stage.js
+* znap.js
 
-* extendBy=multiply as the default
-* if relTime == 0, this AC replaces the last one in the chain, rather than
-  adding on.
-* The root is identity by default, but isn't necessarily so.
-* isLoop
-* Different ways to specify the matrix
-* Chaining matrix methods
+## Generic declarative matrix function format 
 
+Need a simple way to describe, in a static data structure, basic arithmetical
+manipulations to matrices.
 
+For example, how would you specify, using static (no functions) data only,
+something like:
 
+* translate in direction ta with speed ts, staring at position tx0,ty0, and
+* rotate clockwise at speed rs, starting at angle ra0, and
+* scale at rate zs, starting at magnification z0
+* multiply all that with a constant skew 
+* ...
 
-* Reimplement matrix-jig using AC.
-    * Actually do implement the isLoop flag
+The starting positions can be pulled out and made into constants:
 
-
-
-
-
-
-
-
-
-
-
-# Znap block design
-
-Represent points as `point` objects. Try not to make any distinction
-between points and vectors -- use the same objects for both.
-
-These should all be able to take any of various forms:
-
-* position as point objects, thus x-y or r-angle
-
-Make pen up / pen state implicit. Have blocks for "move to" or
-"line to"
+* xlate constant tx0,ty0
+* xlate direction=a, speed=s
+* rotate constant angle=ra0
+* rotate speed=rs
+* scale constant x0
+* scale rate=zs
+* skew constant
 
 
 
+## Harmonize my classes with the blocks I've designed
 
-
-
-# Where next?
-
-* It would not be easy to hook into the existing blocks -- so
-  that means I need new blocks.
-
-
+* Represent points as `point` objects. Try not to make any distinction
+  between points and vectors -- use the same objects for both.
+* Add pen color transformations

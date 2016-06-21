@@ -1,13 +1,14 @@
 'use strict';
 
-const AnimationContext = require('./animation-context.js');
-//const Offset = require('./offset.js');
+const Matrix = require("transformation-matrix-js").Matrix;
 const Point = require('./point.js');
-const Vector = require('./vector.js');
+const Space = require('./space.js');
+const Stage = require('./stage.js');
 const utils = require('./utils.js');
+
 const now = utils.now;
 
-const currentAC = new AnimationContext();
+const currentAC = new Space();
 
 
 function zoom(rate) {
@@ -53,14 +54,14 @@ function addTime(t) {
 
 const Znap = module.exports = {
   addTime,
-  AnimationContext,
-  Point,
-
   currentAC,
   getCoords,
+  Matrix,
+  Point,
   push,
+  Space,
+  Stage,
   utils,
-  Vector,
   zoom,
 };
 
