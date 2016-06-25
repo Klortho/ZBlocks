@@ -10,6 +10,18 @@ const IDENTITY = new Matrix();
 const scale2 = (new Matrix()).scaleU(2);
 
 
+
+// This returns a helper function that verifies the value of a matrix at a 
+// particular time
+const matrixChecker = function(space) {
+  return function(t, ...margs) {
+    const actual = space.matrix(t);
+    //console.log(`After ${t} seconds: `, actual);
+    assert.matricesEqual(actual, Matrix.from(...margs));
+  };
+};
+
+
 describe('Space class', function() {
   it('has some working constructors', function() {
     const sp0 = new Space();
@@ -38,15 +50,9 @@ describe('Space class', function() {
       if (t <= 2) return m.scaleU(4 * t);
       return m.scaleU(4 * 2).rotateDeg(90 * (t - 2)); 
     };
-    const sp3 = new Space(mfunc3);
+    const space = new Space(mfunc3);
 
-    // Assertion helper to check a matrix at a particular time
-    const checkMatrix = function(t, ...margs) {
-      const actual = sp3.matrix(t);
-      //console.log(`After ${t} seconds: `, actual);
-      assert.matricesEqual(actual, Matrix.from(...margs));
-    }
-
+    const checkMatrix = matrixChecker(space);
     checkMatrix(0,   1, 0,  0,  1, 0, 0);
     checkMatrix(1,   4, 0,  0,  4, 0, 0);
     checkMatrix(1.5, 6, 0,  0,  6, 0, 0);
@@ -62,25 +68,30 @@ describe('Space class', function() {
 
 
   it('enables creating a space from stops', function() {
-    const scaleU = Space.scaleU;
-    const rotateDeg = Space.rotateDeg;
-
-    const space = Space.fromStops([
+    const stops = [
       { dt: 1,
         m: IDENTITY,
       },
       { dt: 2,
-        m: scaleU(2),
+        m: Space.scaleU(2),
       },
       { dt: 2,
-        m: rotateDeg(180),
+        m: Space.rotateDeg(180),
+
       },
-    ]);
+      { dt: 1,
+        m: Space.scaleY(2),
+        absolute: true,
+      },
+    ];
+    const space = Space.fromStops(stops);
 
-    assert.equal(space.duration, 5, 'duration is 5');
+    assert.equal(space.duration, 6, 'duration should be correct');
+
     const intervals = space.intervals;
-    assert.equal(space.intervals.length, 3, 'should be 3 intervals');
+    assert.equal(intervals.length, stops.length, 'should have intervals');
 
+    // Check the intervals
     const check = function(i, expDt, expStart, expEnd) {
       const interval = intervals[i];
       assert.nearlyEqual(interval.dt, expDt);
@@ -91,7 +102,15 @@ describe('Space class', function() {
     check(0,  1,  0,   1);
     check(1,  2,  1,   3);
     check(2,  2,  3,   5);
+    check(3,  1,  5,   6);
 
-
+    const checkMatrix = matrixChecker(space);
+    checkMatrix(0,   1,   0,  0,  1,   0, 0);
+    checkMatrix(0.1, 1.1, 0,  0,  1.1, 0, 0);
+    checkMatrix(0.9, 1.9, 0,  0,  1.9, 0, 0);
+    checkMatrix(1,   2,   0,  0,  2,   0, 0);
+    checkMatrix(3,  -2,   0,  0, -2,   0, 0);
+    checkMatrix(4,  -0.5, 0,  0,  0,   0, 0);
+    checkMatrix(5,   1,   0,  0,  2,   0, 0);
   });
 });

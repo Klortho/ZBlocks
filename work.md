@@ -7,7 +7,7 @@
 * ✓utils.js
 * Xassertions.js - not going to test this independently
 * ✓point.js
-* space.js - test `fromStops`
+* ✓space.js
 * stage.js
 * znap.js
 

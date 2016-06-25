@@ -17,17 +17,9 @@ class Space {
   // - undefined or null - constant identity transform
   // - <Matrix> - constant transformation, doesn't vary with time
   // - (t => <Matrix>) - construct it with a function
-  // - props is any object. The properties will be copied to the instance.
-  constructor(_matrix, props) {
+  constructor(_matrix) {
     const matrix = R.isNil(_matrix) ? new Matrix() : _matrix;
     this.mfunc = R.is(Function, matrix) ? matrix : t => matrix;
-    if (R.is(Object, props)) {
-      Object.keys(props).forEach(key => {
-        //console.log('Space copying properties. key: ' + key + 
-        //   ', props: ', props);
-        return this[key] = props[key];
-      });
-    }
   }
 
   // Returns the matrix in effect at a specific time
@@ -82,71 +74,70 @@ matrixMethods.forEach(method => {
 
 // Creates a space from a set of stops, defined like this, for example. Each
 // `dt` specifies the duration of that interval, so the following defines a
-// cycle 5.1 seconds long. By default it loops.
+// cycle 5.1 seconds long. By default:
+//   - each new matrix is multiplied by the previous (override by setting
+//     `absolute: true`)
+//   - it loops.
 // FIXME: implement non-looping.
 //
 //   const space = Znap.Space.fromStops([
-//     { dt: 1,
-//       m: identity,
-//     },
-//     { dt: 2,
-//       m: scaleU(2),
-//     },
-//     { dt: 2.1,
-//       m: rotateDeg(135),
-//     },
+//     { dt: 1, m: identity },
+//     { dt: 2, m: scaleU(2) },
+//     { dt: 2, m: rotateDeg(135) },
+//     { dt: 2, m: rotateDeg(90), absolute: true },
 //   ]);
 
 Space.fromStops = function(stops) {
 
-  // Convert the array of "stops" into an array of intervals. An interval
-  // includes a matrix function. 
+  // We'll run stops through reduce, with this accumulator function.
+  // `acc` is an object with:
+  //   - duration - time accumulated so far
+  //   - intervals - array of all the intervals so far
 
-  const lastI = stops.length - 1;  // last index number
-  const last = stops[lastI];       // last stop object
+  const accumulate = function(acc, thisStop) {
+    const i = acc.intervals.length;
 
-  var startTime = 0;
-  const intervals = stops.map((thisStop, i) => {
-    const start = startTime;
-    const end = startTime = start + thisStop.dt;
+    const {m, dt, absolute} = thisStop;
+    const start = acc.duration;
+    const end = start + dt;
 
-    // The matrix function - takes `t`, returns interpolated matrix (if `t`
-    // is in range) or null (if not)
-    const inInterval = t => (start <= t && t < end);
-    const thisMatrixFn = t => {
-      if (!inInterval(t)) return null;
-      if (t === start) return thisStop.m;
-      const tfrac = (t - start) / (end - start);
+    // This interval's effective matrix: if this is the first interval, or
+    // absolute is true, then fm <= m. Otherwise, multiply by previous fm
+    const fm = acc.intervals.length === 0 || absolute ? m 
+      : R.last(acc.intervals).fm.clone().multiply(m);
 
-      const nextI = i < lastI ? i + 1 : 0;
-      const nextM = stops[nextI].m;
-      return thisStop.m.interpolate(nextM, tfrac); 
+    const matrixFn = t => {
+      // Get the next interval. It will have been instantiated by
+      // the time this executes.   
+      // FIXME: implement non-looping here.
+      const next = intervals[i === intervals.length - 1 ? 0: i + 1];
+
+      const ret =
+          (t < start) ? null             // t is too low, abort
+        : (t >= end) ? next.matrixFn(t)  // t is too high, dispatch to next
+        : (t === start) ? fm             // at start boundary
+        : (() => {                       // interpolate between this and next
+            const tfrac = (t - start) / (end - start);
+            const interp = fm.interpolate(next.fm, tfrac);
+            return interp;
+          })();
+      return ret;
     };
 
-    // This chained matrix function either returns the matrix, or dispatches
-    // to the next interval
-    const matrixFn = t => inInterval(t) ? thisMatrixFn(t) : 
-      intervals[i + 1].matrixFn(t);
-
-    var thisInterval = {
-      dt: thisStop.dt,
-      start,
-      end,
-      m: thisStop.m,
-      thisMatrixFn,
-      matrixFn,
+    return {
+      duration: end,
+      intervals: R.append({i, start, end, dt, m, fm, matrixFn}, acc.intervals),
     };
+  };
 
-    return thisInterval;
-  });
+  const { duration, intervals } = 
+    R.reduce(accumulate, { duration: 0, intervals: [] }, stops);
 
-  // master matrix function
-  const matrixFn = intervals[0].matrixFn;
-
-  return new Space(matrixFn, {
-    intervals,
-    duration: intervals[lastI].end,
-  });
+  // Create the new space and graft on some properties
+  const space = new Space(intervals[0].matrixFn);
+  space.duration = duration;
+  space.intervals = intervals;
+  return space;
 };
 
 module.exports = Space;
