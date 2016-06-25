@@ -190,7 +190,19 @@ I also have [this js-fiddle](http://jsfiddle.net/klortho/gopr0buu/3/) where
 I am playing with canvas and the transformation matrix library.
 
 
-# Tests
+# Source code and tests
+
+## Module list
+
+* src/utils.js
+* test/assertions.js - a small library of assertions used in testing
+* point.js
+* space.js - this provides the "animation context"
+* stage.js - this is a lightweight test harness, for trying things out in 
+  the browser
+* znap.js - the main library
+
+
 
 
 ## Mocha tests
@@ -202,25 +214,24 @@ The following runs mocha tests on everything matching
 npm test
 ```
 
-Run them a-la-carte with, for example
+Run them a-la-carte with, and optionally use a regular expression to
+select a specific test. For example:
 
 ```
 mocha test/utils.test.js
-```
-
-To select a subset, use regular expressions with, for example,
-
-```
 mocha -g 'can scale'
 ```
 
 
-## Matrix-jig
+## src/demo.html
 
 This is an HTML page for learning about, and testing, code that does
 transformations on the canvas. If you've started `./run-server.js` as
 described above, then bring it up at 
-http://localhost:8756/test/matrix-jig.html.
+http://localhost:8756/src/demo.html.
+
+I started with a demo of the solar system, that I modified from the
+tutorial on MDN. 
 
 
 ## Snap! tests

@@ -5,11 +5,13 @@
 **Get tests working again:**
 
 * ✓utils.js
-* Xassertions.js - not going to test this independently
+* ✓assertions.js - not going to test this independently
 * ✓point.js
 * ✓space.js
-* stage.js
+* ✓stage.js - no node tests, since this really is just a test harness itself
 * znap.js
+
+Then: get rid of matrix-jig
 
 ## Generic declarative matrix function format 
 

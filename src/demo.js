@@ -1,91 +1,151 @@
+// This is meant to be loaded from the browser.
 'use strict';
 
-const Matrix = Znap.Matrix;
-const Space = Znap.Space;
-const Stage = Znap.Stage;
-
-
+// using `var` to make sure these are globals
+var Matrix = Znap.Matrix;
+var R = Znap.R;
+var Space = Znap.Space;
+var Stage = Znap.Stage;
+var utils = Znap.utils;
 
 //------------------------------------------------------------------------
 // The parade demo
 
-const parade = () => {
+var parade = () => {
 
   // stops is an array of describing the transformation matrices at
   // specific points in time.
 
   var stops = [ 
-    { dt: 1,
-      m: Space.identity(),
+    { dt: 2,
+      m: Space.IDENTITY,
     },
-    { dt: 12,
-      m: Space.scaleU(2),
+    { dt: 2,
+      m: Space.scaleU(.7),
     },
-    { dt: 33,
+    { dt: 3,
       m: Space.rotateDeg(45),
     },
-  /*
-    { dt: 5,
-      m: Space.rotateDeg(0),
+    { dt: 4,
+      m: Space.scaleY(2).multiply(Space.rotateDeg(30)),
+      absolute: true,
     },
-    { dt: 5,
-      m: Space.rotateDeg(20),
+    { dt: 3,
+      m: Space.shearX(1.5),
     },
-  */
   ];
+
+  const space = Znap.Space.fromStops(stops);
+  const duration = space.duration;
+  const intervals = space.intervals;
+
+  // Get the minimum dt
+  const boxWidth = R.reduce(
+    (acc, intr) => R.min(acc) (R.prop('dt')(intr)),
+    Infinity, intervals
+  );
+
+  const drawingWidth = duration + boxWidth * 2;
+  const xStart = -drawingWidth / 2;
+  const xEnd = xStart + drawingWidth;
+
+  //console.log('duration: ', duration);
+  //console.log('boxWidth: ', boxWidth);
+  //console.log('drawingWidth: ', drawingWidth);
+  //console.log('xStart: ', xStart);
 
   return new Stage({
     initialize: function(ctx) {
       const stage = this;
       this.ctx = ctx;
-      const space = this.space = Znap.Space.fromStops(stops);
-      const duration = this.duration = space.duration;
+      this.space = space;
+
+      // Global transform for the canvas: 
+      // - origin in the middle,
+      // - y-coordinate increasing in up direction
+      ctx.translate(this.width / 2, this.height);
+
+      // Global scale, such that:
+      // - x-coordinates for the parade of boxes are in units of time
+      // - maintain aspect ratio
       this.xUnit = this.width / duration;
+      ctx.scale(this.xUnit, -this.xUnit);
 
-      // debugging:
-      this.msgCount = 0;
-      this.startMsgs = false;
+      // extents in terms of x0, y0, width, height, in the new coords
+      this.extents = [-duration/2, 0, duration, this.height/this.xUnit];
+      this.drawingHeight = this.height / this.xUnit;
 
-      // Initialize colors and a drawing routine for each stop box
-      stops.forEach(stop => {
-        stop.color = Color.random();
-        stop.drawBox = () => {
-          stage.scene(() => {
-            applyMatrix(ctx, stop.m);
-            stage.drawBox(stop.color);
-          });
-        };
-      });
+      // Create a box-drawing function for each interval
+      const boxMaker = () => { 
+        const color = Color.random(); 
+        return function() { 
+          return stage.drawBox(color);
+        } 
+      };
+      this.renderBox = R.map(boxMaker, intervals);
+    },
+
+    initFrame() {
+      this.ctx.clearRect(...this.extents);
     },
 
     // Draws one box. The coordinates should be settled before calling this
     drawBox: function(color) {
       this.ctx.fillStyle = color.toString();
-      this.ctx.fillRect(-20, -30, 40, 60);
+      this.ctx.fillRect(-0.45, -0.45, 0.9, 0.9);
     },
 
-    draw: function(ctx, t) {
+    // Applies a transformation matrix to a canvas context
+    // See also stage.sceneM()
+    applyMatrix: function(m) {
+      this.ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
+    },
+
+    draw: function(t) {
       const stage = this;
-      const duration = this.duration;
+      const ctx = this.ctx;
+      //console.log('  draw t: ', t);
 
       this.scene(() => {
-        // translate coordinates for the parade as a whole
-        ctx.translate(this.width / 2, this.height / 4);
+        // translate coordinates for the parade
+        ctx.translate(0, this.extents[3] / 2);
 
-        // Draw two boxes for each, to make sure we have coverage
-        stops.forEach(stop => {
-          const xpos = (stop.t - t).mod(duration) - duration;
+        // This step function draws the boxes that cover the drawing area.
+        // `seek` is true initially; when in seek mode, it just looks for
+        // the first box to draw.
+        const step = function(seek, interval, xpos) {
+          const i = interval.i;
+          //console.log(`    ${seek ? 'seeking' : 'drawing'}: interval ${i} ` +
+          //  `xpos: ${xpos}`);
 
-          [0, duration].forEach(extraX => {
+          if (!seek) {
             stage.scene(() => {
-              ctx.translate(stage.xUnit * (xpos + extraX), 0);
-              stop.drawBox();
+              ctx.translate(xpos, 0);
+              stage.sceneM(interval.fm, () => {
+                stage.renderBox[i]();
+              });
             });
-          });
-        });
+          }
+
+          const nextX = xpos + interval.dt;
+          const nextSeek = seek && nextX < xStart;
+          if (nextX <= xEnd) {
+            const nextI = (i + 1) % intervals.length;
+            step(nextSeek, intervals[nextI], nextX);
+          }
+        }
+
+        // The parade has been going for a while. This is the offset to 
+        // apply such that we are guaranteed, that the x position of the 
+        // first box will be < xStart.
+        const xOffset = Math.floor((xStart + t) / duration) * duration - t;
+        //console.log('  xOffset: ', xOffset);
+
+        const i0 = intervals[0];
+        step(true, i0, i0.start + xOffset);
       });
 
-
+    /*
       // Now for the transformating box
       this.scene(() => {
         ctx.translate(this.width / 2, 3 * this.height / 4);
@@ -98,6 +158,7 @@ const parade = () => {
         //ctx.
 
       });
+    */
     },
   });
 };
@@ -106,10 +167,6 @@ const parade = () => {
 //------------------------------------------------------------------------
 // Helpers
 
-// Applies a transformation matrix to a canvas context
-function applyMatrix(ctx, m) {
-  ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
-}
 
 //------------------------------------------------------------------------
 // Color class
@@ -153,9 +210,43 @@ Color.random = function() {
 //------------------------------------------------------------------------
 // main
 
-const hash = (typeof window === 'undefined') ? '' :
-  window.location.hash.substr(1);
-const stage = hash === 'solar-system' ? Stage.solarSystem: parade();
-stage.start();
-stage.enableKeyboard();
+if (!R.isNil(window)) {
+  const demos = {
+    'solsys': () => Stage.solarSystem,
+    'boxes': parade,
+  };
 
+  // Not `const`, so that it will be global
+  var loadDemo = demo => {
+    window.location.hash = "#" + demo;
+    window.location.reload(true);
+  };
+
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <p>Time: <span id='t'></span></p>
+    <p>Demos:</p>
+    <ul>${
+      Object.keys(demos).map(demo =>
+        `<li><a href='javascript:loadDemo("${demo}");'>${demo}</a></li>`
+      ).join('')
+    }</ul>
+  `;
+  document.querySelector('body').appendChild(div);
+
+  // load the current demo
+  const hash = window.location.hash.substr(1) || 'boxes';
+  if (!(demos[hash] instanceof Function)) {
+    console.error('No demo for hash: ' + hash);
+  }
+
+  else {
+    var stage = demos[hash]();
+    stage.start();
+    stage.enableKeyboard();
+  }
+}
+
+// make some globals for debugging
+var space = stage.space;
+var ctx = stage.ctx;

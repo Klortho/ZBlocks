@@ -47,8 +47,8 @@ class Stage {
       const displayTime = Math.floor(this._accTime * 10) / 10;
       document.querySelector('#t').innerHTML = displayTime;
 
-      this.initFrame(ctx);
-      this.draw(ctx, t);
+      this.initFrame();
+      this.draw(t);
       window.requestAnimationFrame(this.animate);
     };
 
@@ -56,7 +56,7 @@ class Stage {
   }
 
   // default initialize method does nothing
-  initialize(ctx) {}
+  initialize() {}
 
   start() {
     // Keep time with an accumulator, rather than (now - start), so that
@@ -74,8 +74,8 @@ class Stage {
     this._paused = pauseOn;
   }
 
-  initFrame(ctx) {
-    ctx.clearRect(0, 0, this.width, this.height);
+  initFrame() {
+    this.ctx.clearRect(0, 0, this.width, this.height);
   }
 
   // Executes a drawing function inside ctx.save and .restore
@@ -83,6 +83,15 @@ class Stage {
     this.ctx.save();
     drawFunc.call(this, ...args);
     this.ctx.restore();
+  }
+
+  // Executes a drawing function inside a matrix transform
+  sceneM(m, drawFunc, ...args) {
+    const ctx = this.ctx;
+    ctx.save();
+      ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
+      drawFunc.call(this, ...args);
+    ctx.restore();
   }
 
   // Call this to enable some keyboard handlers
@@ -117,29 +126,25 @@ Object.defineProperty(Stage, 'solarSystem', {
       ctx.strokeStyle = 'rgba(0, 153, 255, 0.4)';
     },
 
-    draw: function(ctx, t) {
+    draw: function(t) {
       const stage = this;
+      const ctx = this.ctx;
 
+      // Earth
       ctx.save();
         ctx.translate(150, 150);
-
-        // here's how to apply a transform from a Matrix object
-        const m = new Matrix().scale(0.5, 0.5);
-        //m.applyToContext(ctx);    // this overrides completely
-        // but this multiplies:
-        ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
-
-        // Earth
         ctx.rotate(2 * Math.PI * t / 60);
         ctx.translate(105, 0);
         ctx.fillRect(0, -12, 50, 24); // Shadow
         ctx.drawImage(stage.earth, -12, -12);
       ctx.restore();
       
+      // Earth orbit
       ctx.beginPath();
-      ctx.arc(150, 150, 105, 0, 2 * Math.PI, false); // Earth orbit
+      ctx.arc(150, 150, 105, 0, 2 * Math.PI, false);
       ctx.stroke();
      
+      // Sun
       ctx.drawImage(stage.sun, 0, 0, 300, 300);
     },
   }),

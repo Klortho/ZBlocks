@@ -2,6 +2,7 @@
 
 const Matrix = require("transformation-matrix-js").Matrix;
 const Point = require('./point.js');
+const R = require('ramda');
 const Space = require('./space.js');
 const Stage = require('./stage.js');
 const utils = require('./utils.js');
@@ -59,6 +60,7 @@ const Znap = module.exports = {
   Matrix,
   Point,
   push,
+  R,
   Space,
   Stage,
   utils,
